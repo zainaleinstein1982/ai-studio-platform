@@ -554,6 +554,7 @@ export default function Landing() {
                   ["API Keys", "/dashboard#keys"],
                   ["Billing", "/dashboard#billing"],
                   ["History", "/dashboard#history"],
+                  ["Account", "/dashboard#account"],
                 ].map(([label, href]) => (
                   <li key={label}>
                     <Link to={href} className="text-muted-foreground transition-colors hover:text-foreground">

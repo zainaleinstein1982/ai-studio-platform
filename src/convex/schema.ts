@@ -48,6 +48,42 @@ const schema = defineSchema(
       revokedAt: v.optional(v.number()),
     }).index("by_user", ["userId"]),
 
+    // STEP 02 · Organization & Team
+    organizations: defineTable({
+      name: v.string(),
+      slug: v.optional(v.string()),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+    }).index("by_createdBy", ["createdBy"]),
+
+    organizationMembers: defineTable({
+      orgId: v.id("organizations"),
+      userId: v.id("users"),
+      role: v.union(v.literal("owner"), v.literal("admin"), v.literal("member")),
+      email: v.optional(v.string()),
+      addedBy: v.optional(v.id("users")),
+      createdAt: v.number(),
+    })
+      .index("by_org", ["orgId"])
+      .index("by_user", ["userId"])
+      .index("by_org_user", ["orgId", "userId"]),
+
+    // STEP 02 · Email verification tokens (hashed, expiring)
+    emailVerifications: defineTable({
+      userId: v.id("users"),
+      email: v.string(),
+      tokenHash: v.string(),
+      expiresAt: v.number(),
+      createdAt: v.number(),
+    }).index("by_user", ["userId"]),
+
+    // STEP 02 · Rate limiting (fixed-window counters)
+    rateLimits: defineTable({
+      key: v.string(), // "<name>:<bucket>:<subject>"
+      count: v.number(),
+      createdAt: v.number(),
+    }).index("by_key", ["key"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

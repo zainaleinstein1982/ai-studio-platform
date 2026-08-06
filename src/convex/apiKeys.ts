@@ -2,31 +2,8 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getCurrentUser } from "./users";
-
-const KEY_PREFIX = "apk_live_";
-
-/** sha-256 hex digest — the full secret is never stored, only its hash. */
-async function sha256Hex(input: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(input),
-  );
-  return Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function randomHex(bytes: number): string {
-  const buf = new Uint8Array(bytes);
-  crypto.getRandomValues(buf);
-  return Array.from(buf)
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function generateSecret(): string {
-  return `${KEY_PREFIX}${randomHex(24)}`;
-}
+import { generateSecret, secretPrefix, sha256Hex } from "./keygen";
+import { enforceRateLimit } from "./rateLimit";
 
 export const list = query({
   args: {},
@@ -55,9 +32,17 @@ export const create = mutation({
     const user = await getCurrentUser(ctx);
     if (!user) throw new Error("Not authenticated");
 
+    // Permission middleware: limit key issuance per user.
+    await enforceRateLimit(ctx, {
+      name: "api-key-create",
+      key: user._id,
+      limit: 5,
+      windowMs: 60_000,
+    });
+
     const secret = generateSecret();
     const keyHash = await sha256Hex(secret);
-    const prefix = `${secret.slice(0, 16)}…`;
+    const prefix = secretPrefix(secret);
 
     const id = await ctx.db.insert("apiKeys", {
       userId: user._id,

@@ -15,6 +15,8 @@ import {
   simulateResponse,
 } from "./catalog";
 import { getCurrentUser } from "./users";
+import { requireUser } from "./permissions";
+import { enforceRateLimit } from "./rateLimit";
 
 /* ------------------------------------------------------------------ */
 /* Gateway router — entry point                                        */
@@ -31,8 +33,15 @@ export const send = mutation({
     apiKeyId: v.optional(v.id("apiKeys")),
   },
   handler: async (ctx, args) => {
-    const user = await getCurrentUser(ctx);
-    if (!user) throw new Error("Not authenticated");
+    const user = await requireUser(ctx);
+
+    // STEP 02 · Permission middleware + rate limit (20 calls / 10s per user).
+    await enforceRateLimit(ctx, {
+      name: "gateway-send",
+      key: user._id,
+      limit: 20,
+      windowMs: 10_000,
+    });
 
     if (!GATEWAY_KINDS.includes(args.kind as GatewayKind)) {
       throw new Error("Unknown request kind");

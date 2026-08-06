@@ -44,6 +44,44 @@ export function DocsTab() {
       </div>
 
       <div className="space-y-8">
+      {/* authentication reference (STEP 02) */}
+      <div>
+        <SectionTitle kicker="STEP 02 · Authentication" title="Sign-in methods" />
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Password",
+              "Register / login with email + password. Passwords are hashed with scrypt; sessions are JWT with automatic refresh.",
+            ],
+            [
+              "Magic link",
+              "Six-digit code emailed to the address — no password needed. Codes expire after 15 minutes.",
+            ],
+            [
+              "Forgot password",
+              "Request a reset code, then set a new password. Reset codes are single-use and expire in 15 minutes.",
+            ],
+            [
+              "Google · GitHub",
+              "OAuth sign-in. Add AUTH_GOOGLE_ID / AUTH_GOOGLE_SECRET and AUTH_GITHUB_ID / AUTH_GITHUB_SECRET to your project keys, then the buttons activate automatically.",
+            ],
+            [
+              "Email verification",
+              "Verify from the Account tab — sets the verified badge used by admin and org tooling.",
+            ],
+            [
+              "RBAC · Organizations",
+              "Roles member < user < admin gate mutations via the permission middleware. Organizations add owner / admin / member team roles.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="text-[13px] font-medium text-foreground">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
         <Step n={1} title="Create an API key">
           <p>
             Open <span className="font-mono text-[12px] text-foreground">API Keys</span>,

@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   LogOut,
   Send,
+  UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -21,9 +22,17 @@ import { ApiKeysTab } from "@/components/dashboard/ApiKeysTab";
 import { HistoryTab } from "@/components/dashboard/HistoryTab";
 import { BillingTab } from "@/components/dashboard/BillingTab";
 import { DocsTab } from "@/components/dashboard/DocsTab";
+import { AccountTab } from "@/components/dashboard/AccountTab";
 import { cn } from "@/lib/utils";
 
-export type ConsoleTab = "overview" | "gateway" | "keys" | "history" | "billing" | "docs";
+export type ConsoleTab =
+  | "overview"
+  | "gateway"
+  | "keys"
+  | "history"
+  | "billing"
+  | "docs"
+  | "account";
 
 const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Overview", sub: "Usage at a glance", icon: LayoutDashboard },
@@ -32,6 +41,7 @@ const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] =
   { id: "history", label: "History", sub: "The full request ledger", icon: History },
   { id: "billing", label: "Billing", sub: "Credits, plans, and usage", icon: CreditCard },
   { id: "docs", label: "Docs", sub: "Guides and provider reference", icon: BookOpen },
+  { id: "account", label: "Account", sub: "Profile, verification, teams, roles", icon: UserRound },
 ];
 
 function tabFromHash(): ConsoleTab {
@@ -235,6 +245,7 @@ export default function Dashboard() {
             {tab === "history" && <HistoryTab />}
             {tab === "billing" && <BillingTab />}
             {tab === "docs" && <DocsTab />}
+            {tab === "account" && <AccountTab />}
           </motion.div>
         </div>
       </main>
