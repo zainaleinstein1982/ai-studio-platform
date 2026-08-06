@@ -322,6 +322,55 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* video module reference (STEP 08) */}
+      <div>
+        <SectionTitle kicker="STEP 08 · Video" title="The eleven-stage render workflow" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Text and stills become 24 fps clips through one render pipeline: receive →
+          validate → optimize motion → router → queue → progress → streaming → preview →
+          history → download → webhook. The Video tab walks both Text→Video and
+          Image→Video through every stage live, with render progress reported as
+          streamed frames.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Queue",
+              "Tasks are accepted into the render queue and drained by a scheduled worker: queued → processing → completed | failed with deterministic provider timing.",
+            ],
+            [
+              "Progress",
+              "Render progress is reported as a frame counter — every task knows its clip profile (24 fps, 4–10 s) and streams frames as they are encoded.",
+            ],
+            [
+              "Streaming",
+              "Chunks are delivered live while the clip renders; the console shows the frame cursor advancing in real time. In production this maps to chunked HTTP responses.",
+            ],
+            [
+              "Preview · Download",
+              "A poster frame (poster.jpg) and the final clip (clip.mp4, H.264) land in the video asset bucket. The HTTP API serves GET /v1/textVideo/tasks/:id/download?format=mp4|poster (and /v1/imageVideo/…).",
+            ],
+            [
+              "History · Retry",
+              "Every submission lands in the ledger. Failed renders can be retried up to 3 times, each attempt re-queued with fresh timing.",
+            ],
+            [
+              "Webhook · Storage",
+              "Signed HMAC-SHA256 deliveries reconcile tasks via POST /v1/webhooks/textVideo/:taskId (or /v1/webhooks/imageVideo/:taskId). Final artifacts persist to the video bucket for 30 days.",
+            ],
+            [
+              "Providers",
+              "Runway for cinematic camera work, Luma for dream-like fluid motion, Pika for playful loops and effects — each routed by keywords or an explicit preference.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />

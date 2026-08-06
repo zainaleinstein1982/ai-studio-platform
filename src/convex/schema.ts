@@ -213,6 +213,79 @@ const schema = defineSchema(
       .index("by_user_status", ["userId", "status"])
       .index("by_provider_status", ["provider", "status"]),
 
+    // STEP 08 · Text → Video module — one row per submitted render task.
+    textVideoTasks: defineTable({
+      userId: v.id("users"),
+      provider: v.string(), // runway | luma | pika
+      model: v.string(),
+      prompt: v.string(),
+      optimizedPrompt: v.string(),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+      durationMs: v.number(),
+      attempts: v.number(),
+      error: v.optional(v.string()),
+      // video specifics
+      progress: v.number(), // 0..100 render progress
+      framesRendered: v.number(),
+      totalFrames: v.number(),
+      fps: v.number(),
+      seconds: v.number(),
+      streaming: v.boolean(), // chunks delivered as frames render
+      previewUrl: v.optional(v.string()), // poster frame
+      outputUrl: v.optional(v.string()), // mp4 clip
+      createdAt: v.number(),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_provider_status", ["provider", "status"]),
+
+    // STEP 08 · Image → Video module — one row per submitted render task.
+    imageVideoTasks: defineTable({
+      userId: v.id("users"),
+      provider: v.string(), // runway | luma | pika
+      model: v.string(),
+      prompt: v.string(), // motion prompt
+      optimizedPrompt: v.string(),
+      imageName: v.string(),
+      imageUrl: v.string(), // downscaled data URL of the still
+      width: v.number(),
+      height: v.number(),
+      caption: v.string(), // vision caption of the still
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+      durationMs: v.number(),
+      attempts: v.number(),
+      error: v.optional(v.string()),
+      // video specifics
+      progress: v.number(), // 0..100 render progress
+      framesRendered: v.number(),
+      totalFrames: v.number(),
+      fps: v.number(),
+      seconds: v.number(),
+      streaming: v.boolean(),
+      previewUrl: v.optional(v.string()),
+      outputUrl: v.optional(v.string()),
+      createdAt: v.number(),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_provider_status", ["provider", "status"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

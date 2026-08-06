@@ -389,6 +389,221 @@ export const i3dWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+/** Text→Video — POST /v1/textVideo/tasks (Bearer key) */
+export const tvSubmit = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  if (!prompt.trim()) return json({ error: "Missing prompt" }, 400);
+
+  try {
+    const { taskId, status } = await ctx.runMutation(api.textToVideo.createViaKey, {
+      keyId: key.id,
+      prompt,
+      preferredProvider:
+        typeof body.preferredProvider === "string" ? body.preferredProvider : undefined,
+      preferredModel: typeof body.preferredModel === "string" ? body.preferredModel : undefined,
+    });
+    return json(
+      { id: taskId, status, statusUrl: `/v1/textVideo/tasks/${taskId}` },
+      202,
+    );
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Text→Video submission failed";
+    return json({ error: msg }, msg.toLowerCase().includes("key") ? 401 : 400);
+  }
+});
+
+/** Text→Video — GET /v1/textVideo/tasks/:id · GET /v1/textVideo/tasks/:id/download */
+export const tvPoll = httpAction(async (ctx, request) => {
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  const pathname = new URL(request.url).pathname;
+  const rest = pathname.replace(/^\/v1\/textVideo\/tasks\//, "");
+  const download = rest.endsWith("/download");
+  const id = download ? rest.replace(/\/download$/, "") : rest;
+  if (!id) return json({ error: "Missing task id" }, 400);
+
+  const task = await ctx.runQuery(api.textToVideo.getPublic, { taskId: id as never });
+  if (!task) return json({ error: "Task not found" }, 404);
+
+  if (download) {
+    if (task.status !== "completed" || !task.outputUrl) {
+      return json({ error: `Task is ${task.status} — clip not ready` }, 409);
+    }
+    const format = new URL(request.url).searchParams.get("format") ?? "mp4";
+    const url = format === "poster" ? task.previewUrl : format === "mp4" ? task.outputUrl : null;
+    if (!url) return json({ error: `Unknown format "${format}"` }, 400);
+    return json({ taskId: id, format, url, expiresIn: "30d" });
+  }
+
+  return json(task);
+});
+
+/** Text→Video webhook — POST /v1/webhooks/textVideo/:taskId */
+export const tvWebhook = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const pathname = new URL(request.url).pathname;
+  const taskId = pathname.replace(/^\/v1\/webhooks\/textVideo\//, "");
+  if (!taskId) return json({ error: "Missing task id" }, 400);
+
+  const signature = request.headers.get("x-atelier-signature") ?? "";
+  if (!signature) return json({ error: "Missing X-Atelier-Signature header" }, 401);
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const event = typeof body.event === "string" ? body.event : "";
+  if (!event) return json({ error: "Body must include event" }, 400);
+
+  try {
+    const result = await ctx.runMutation(api.textToVideo.verifyAndApplyWebhook, {
+      taskId: taskId as never,
+      event,
+      payload,
+      signature,
+    });
+    return json({ ok: true, taskId, status: result.status });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, msg.toLowerCase().includes("signature") ? 401 : 400);
+  }
+});
+
+/** Image→Video — POST /v1/imageVideo/tasks (Bearer key, base64 still in JSON) */
+export const ivSubmit = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl : "";
+  const imageName = typeof body.imageName === "string" ? body.imageName : "still.png";
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  if (!imageUrl.startsWith("data:image/")) {
+    return json({ error: "Missing image — send a base64 data URL in imageUrl" }, 400);
+  }
+  if (!prompt.trim()) return json({ error: "Missing prompt — describe the motion" }, 400);
+  const num = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? n : 0);
+  const str = (n: unknown) => (typeof n === "string" ? n : undefined);
+
+  try {
+    const { taskId, status } = await ctx.runMutation(api.imageToVideo.createViaKey, {
+      keyId: key.id,
+      imageName,
+      imageUrl,
+      width: num(body.width),
+      height: num(body.height),
+      avgColor: str(body.avgColor) ?? "#808080",
+      brightness: num(body.brightness) || 0.5,
+      prompt,
+      preferredProvider: str(body.preferredProvider),
+      preferredModel: str(body.preferredModel),
+    });
+    return json({ id: taskId, status, statusUrl: `/v1/imageVideo/tasks/${taskId}` }, 202);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Image→Video submission failed";
+    return json({ error: msg }, msg.toLowerCase().includes("key") ? 401 : 400);
+  }
+});
+
+/** Image→Video — GET /v1/imageVideo/tasks/:id · GET /v1/imageVideo/tasks/:id/download */
+export const ivPoll = httpAction(async (ctx, request) => {
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  const pathname = new URL(request.url).pathname;
+  const rest = pathname.replace(/^\/v1\/imageVideo\/tasks\//, "");
+  const download = rest.endsWith("/download");
+  const id = download ? rest.replace(/\/download$/, "") : rest;
+  if (!id) return json({ error: "Missing task id" }, 400);
+
+  const task = await ctx.runQuery(api.imageToVideo.getPublic, { taskId: id as never });
+  if (!task) return json({ error: "Task not found" }, 404);
+
+  if (download) {
+    if (task.status !== "completed" || !task.outputUrl) {
+      return json({ error: `Task is ${task.status} — clip not ready` }, 409);
+    }
+    const format = new URL(request.url).searchParams.get("format") ?? "mp4";
+    const url = format === "poster" ? task.previewUrl : format === "mp4" ? task.outputUrl : null;
+    if (!url) return json({ error: `Unknown format "${format}"` }, 400);
+    return json({ taskId: id, format, url, expiresIn: "30d" });
+  }
+
+  return json(task);
+});
+
+/** Image→Video webhook — POST /v1/webhooks/imageVideo/:taskId */
+export const ivWebhook = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const pathname = new URL(request.url).pathname;
+  const taskId = pathname.replace(/^\/v1\/webhooks\/imageVideo\//, "");
+  if (!taskId) return json({ error: "Missing task id" }, 400);
+
+  const signature = request.headers.get("x-atelier-signature") ?? "";
+  if (!signature) return json({ error: "Missing X-Atelier-Signature header" }, 401);
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const event = typeof body.event === "string" ? body.event : "";
+  if (!event) return json({ error: "Body must include event" }, 400);
+
+  try {
+    const result = await ctx.runMutation(api.imageToVideo.verifyAndApplyWebhook, {
+      taskId: taskId as never,
+      event,
+      payload,
+      signature,
+    });
+    return json({ ok: true, taskId, status: result.status });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, msg.toLowerCase().includes("signature") ? 401 : 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
 http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "POST", handler: i3dWebhook });
@@ -403,6 +618,16 @@ http.route({ path: "/v1/text3d/tasks", method: "OPTIONS", handler: t3dSubmit });
 http.route({ pathPrefix: "/v1/image3d/tasks/", method: "GET", handler: i3dPoll });
 http.route({ path: "/v1/image3d/tasks", method: "POST", handler: i3dSubmit });
 http.route({ path: "/v1/image3d/tasks", method: "OPTIONS", handler: i3dSubmit });
+http.route({ pathPrefix: "/v1/webhooks/imageVideo/", method: "POST", handler: ivWebhook });
+http.route({ pathPrefix: "/v1/webhooks/imageVideo/", method: "OPTIONS", handler: ivWebhook });
+http.route({ pathPrefix: "/v1/webhooks/textVideo/", method: "POST", handler: tvWebhook });
+http.route({ pathPrefix: "/v1/webhooks/textVideo/", method: "OPTIONS", handler: tvWebhook });
+http.route({ pathPrefix: "/v1/textVideo/tasks/", method: "GET", handler: tvPoll });
+http.route({ path: "/v1/textVideo/tasks", method: "POST", handler: tvSubmit });
+http.route({ path: "/v1/textVideo/tasks", method: "OPTIONS", handler: tvSubmit });
+http.route({ pathPrefix: "/v1/imageVideo/tasks/", method: "GET", handler: ivPoll });
+http.route({ path: "/v1/imageVideo/tasks", method: "POST", handler: ivSubmit });
+http.route({ path: "/v1/imageVideo/tasks", method: "OPTIONS", handler: ivSubmit });
 http.route({ pathPrefix: "/v1/", method: "POST", handler: v1Proxy });
 http.route({ pathPrefix: "/v1/", method: "OPTIONS", handler: v1Proxy });
 
