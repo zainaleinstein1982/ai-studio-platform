@@ -82,6 +82,52 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* gateway architecture reference (STEP 04) */}
+      <div>
+        <SectionTitle kicker="STEP 04 · Gateway" title="Architecture" />
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Ingress & validation",
+              "Requests are validated (kind, provider, model, prompt, image requirement) before any routing. The HTTP proxy accepts Bearer or X-API-Key auth.",
+            ],
+            [
+              "Key policy",
+              "Before enqueueing, the gateway checks scopes, daily / monthly / quota limits, expiry, and revocation — a rejected key never reaches a provider.",
+            ],
+            [
+              "Circuit breaker",
+              "Per-provider breakers trip after 3 consecutive failures and open for 30s. While open, calls fail fast with 503 instead of hammering the upstream.",
+            ],
+            [
+              "Retry · timeout",
+              "Failed attempts retry once with ~1.2s backoff. Every provider call is bounded by its adapter timeout (45–120s) — a timeout counts as a failure.",
+            ],
+            [
+              "Task queue",
+              "Queued requests are picked up by a scheduled worker: queued → processing → completed | failed. Events are appended to each request as it moves.",
+            ],
+            [
+              "Streaming",
+              "Enable stream: true and the response is delivered as partial chunks with a live cursor, then finalized. Chunks are visible in the ledger.",
+            ],
+            [
+              "Provider abstraction",
+              "Every upstream (OpenAI, Anthropic, Google, Meshy, Tripo, Runway, Kling, Luma) implements one ProviderAdapter — supports, timeout, call. Swapping a simulated adapter for a real HTTP call is a single file change.",
+            ],
+            [
+              "Storage · billing",
+              "Inputs and outputs persist to object storage; credits are charged only when a request completes. Failures never hit the balance.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="text-[13px] font-medium text-foreground">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
         <Step n={1} title="Create an API key">
           <p>
             Open <span className="font-mono text-[12px] text-foreground">API Keys</span>,
@@ -124,6 +170,13 @@ export function DocsTab() {
             <span className="text-chart-3">$</span> curl https://api.atelier.dev/v1/text {"\\"}
             {"\n  "}  -H <span className="text-chart-5">"Authorization: Bearer {keyPrefix}…"</span> {"\\"}
             {"\n  "}  -d <span className="text-chart-5">'{"{"}"prompt":"describe a still life"{"}"}'</span>
+            {"\n\n"}
+            <span className="text-muted-foreground"># → 202 {"{"}"id":"req_8f3a21","status":"queued"{"}"} — poll it:</span>
+            {"\n"}
+            <span className="text-chart-3">$</span> curl https://api.atelier.dev/v1/requests/req_8f3a21 {"\\"}
+            {"\n  "}  -H <span className="text-chart-5">"Authorization: Bearer {keyPrefix}…"</span>
+            {"\n\n"}
+            <span className="text-muted-foreground"># stream: true delivers the body in chunks before completing</span>
           </Code>
         </Step>
       </div>

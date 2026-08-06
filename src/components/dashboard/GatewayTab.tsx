@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SectionTitle, StatusBadge, kindLabel, providerLabel } from "./bits";
 import { cn } from "@/lib/utils";
@@ -41,10 +42,23 @@ interface PendingImage {
   preview: string;
 }
 
+/* STEP 04 · stage labels for the events timeline */
+const STAGE_META: Record<string, { label: string; tone: "done" | "info" | "fail" }> = {
+  accepted: { label: "Accepted by gateway", tone: "done" },
+  queued: { label: "Queued for a worker", tone: "info" },
+  dequeued: { label: "Dequeued by worker", tone: "info" },
+  attempt: { label: "Provider attempt", tone: "info" },
+  retry: { label: "Retrying (backoff)", tone: "info" },
+  chunk: { label: "Streaming chunk", tone: "info" },
+  completed: { label: "Completed", tone: "done" },
+  failed: { label: "Failed", tone: "fail" },
+};
+
 export function GatewayTab() {
   const requests = useQuery(api.gateway.list, { limit: 6 });
   const stats = useQuery(api.gateway.stats);
   const keys = useQuery(api.apiKeys.list);
+  const health = useQuery(api.gateway.providerHealth);
   const send = useMutation(api.gateway.send);
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
 
@@ -62,6 +76,8 @@ export function GatewayTab() {
   const [prompt, setPrompt] = useState("");
   const [image, setImage] = useState<PendingImage | null>(null);
   const [apiKeyId, setApiKeyId] = useState<string>("auto");
+  const [stream, setStream] = useState(false);
+  const [simulateFailure, setSimulateFailure] = useState(false);
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -114,8 +130,14 @@ export function GatewayTab() {
         imageStorageId: image?.storageId,
         imageName: image?.name,
         apiKeyId: apiKeyId === "auto" ? undefined : (apiKeyId as Id<"apiKeys">),
+        stream,
+        simulateFailure,
       });
-      toast.success(`${meta.label} request queued — watching the pipeline…`);
+      toast.success(
+        stream
+          ? `${meta.label} request queued — streaming the response in chunks…`
+          : `${meta.label} request queued — watching the pipeline…`,
+      );
       setPrompt("");
       setImage((img) => {
         if (img) URL.revokeObjectURL(img.preview);
@@ -130,6 +152,7 @@ export function GatewayTab() {
 
   /* ---- pipeline trace steps ---------------------------------- */
   const status = latest?.status ?? null;
+  const attempts = latest?.attempts ?? 0;
   const steps = [
     {
       key: "router",
@@ -146,8 +169,10 @@ export function GatewayTab() {
     {
       key: "provider",
       label: "AI provider",
-      detail: latest ? `${providerLabel(latest.provider)} · ${latest.model}` : "simulated round trip",
-      state: status === null ? "pending" : status === "processing" ? "active" : status === "completed" ? "done" : "pending",
+      detail: latest
+        ? `${providerLabel(latest.provider)} · ${latest.model}${attempts > 1 ? ` · ${attempts} attempt${attempts > 1 ? "s" : ""}` : ""}`
+        : "simulated round trip",
+      state: status === null ? "pending" : status === "processing" ? "active" : status === "completed" ? "done" : status === "failed" ? "failed" : "pending",
     },
     {
       key: "storage",
@@ -162,6 +187,16 @@ export function GatewayTab() {
       state: status === "completed" ? "done" : "pending",
     },
   ];
+
+  /* STEP 04 · streaming output cursor — show partial text live */
+  const streaming =
+    latest?.stream && latest.status === "processing" && latest.responseText != null;
+  const showOutput =
+    latest?.status === "completed" && latest.responseText
+      ? latest.responseText
+      : streaming
+        ? latest.responseText
+        : null;
 
   return (
     <div className="grid gap-6 xl:grid-cols-5">
@@ -343,6 +378,28 @@ export function GatewayTab() {
             </div>
           )}
 
+          {/* STEP 04 · gateway behavior toggles */}
+          <div className="mt-5 grid gap-3 rounded-md border border-border/70 bg-background p-4 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span>
+                <span className="block text-[12.5px] font-medium text-foreground">Stream response</span>
+                <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
+                  Deliver the output in chunks with a live cursor.
+                </span>
+              </span>
+              <Switch checked={stream} onCheckedChange={setStream} />
+            </label>
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <span>
+                <span className="block text-[12.5px] font-medium text-foreground">Simulate failure</span>
+                <span className="mt-0.5 block text-[11px] leading-5 text-muted-foreground">
+                  Force a provider outage to exercise retry + circuit breaker.
+                </span>
+              </span>
+              <Switch checked={simulateFailure} onCheckedChange={setSimulateFailure} />
+            </label>
+          </div>
+
           {/* send row */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-5">
             <p className="text-[12px] text-muted-foreground">
@@ -423,12 +480,53 @@ export function GatewayTab() {
           </div>
         </div>
 
+        {/* STEP 04 · events timeline */}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <SectionTitle kicker="Task queue" title="Events" />
+          {latest && latest.events?.length ? (
+            <div className="mt-4 space-y-1">
+              {latest.events.map((ev, i) => {
+                const m = STAGE_META[ev.stage] ?? { label: ev.stage, tone: "info" as const };
+                return (
+                  <div key={i} className="flex items-center gap-3 rounded px-2 py-1.5 hover:bg-accent/40">
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        m.tone === "done" && "bg-chart-2",
+                        m.tone === "fail" && "bg-destructive",
+                        m.tone === "info" && "bg-chart-4",
+                      )}
+                    />
+                    <p className="min-w-0 flex-1 text-[12px] text-foreground/90">{m.label}</p>
+                    {ev.detail && (
+                      <p className="max-w-[45%] truncate font-mono text-[10.5px] text-muted-foreground">
+                        {ev.detail}
+                      </p>
+                    )}
+                    <p className="shrink-0 font-mono text-[10px] text-muted-foreground/70">
+                      +{Math.round((ev.at - (latest.createdAt ?? ev.at)) / 1000)}s
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md border border-dashed border-border px-4 py-6 text-center text-[12px] text-muted-foreground">
+              Request events appear here as the worker pipeline advances.
+            </p>
+          )}
+        </div>
+
         {/* response */}
         <div className="rounded-lg border border-border bg-card p-6">
-          <SectionTitle kicker="Provider response" title="Output" />
-          {latest?.status === "completed" && latest.responseText ? (
+          <SectionTitle
+            kicker="Provider response"
+            title="Output"
+            right={streaming ? <span className="text-[11px] font-medium text-chart-4">streaming…</span> : undefined}
+          />
+          {latest && showOutput ? (
             <div className="mt-4 space-y-4">
-              {latest.imageUrl && (
+              {latest?.imageUrl && latest.status === "completed" && (
                 <img
                   src={latest.imageUrl}
                   alt={latest.imageName ?? "input image"}
@@ -436,7 +534,8 @@ export function GatewayTab() {
                 />
               )}
               <pre className="scrollbar-thin overflow-x-auto rounded-md border border-border bg-background p-4 font-mono text-[11.5px] leading-6 text-foreground/90">
-                {latest.responseText}
+                {showOutput}
+                {streaming && <span className="ml-0.5 inline-block h-3.5 w-1.5 animate-pulse bg-chart-4 align-middle" />}
               </pre>
               <div className="flex flex-wrap gap-x-6 gap-y-1.5 text-[11.5px] text-muted-foreground">
                 <span>
@@ -450,6 +549,9 @@ export function GatewayTab() {
                 </span>
                 <span>
                   cost <span className="font-mono text-foreground">{latest.credits} cr</span>
+                </span>
+                <span>
+                  attempts <span className="font-mono text-foreground">{latest.attempts ?? 0}</span>
                 </span>
               </div>
             </div>
@@ -469,6 +571,47 @@ export function GatewayTab() {
                 Send a request and watch it travel the pipeline, then collect the response here.
               </p>
             </div>
+          )}
+        </div>
+
+        {/* STEP 04 · provider health */}
+        <div className="rounded-lg border border-border bg-card p-6">
+          <SectionTitle kicker="Provider manager" title="Upstream health" />
+          {health?.length ? (
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {health.map((h) => (
+                <div
+                  key={h.provider}
+                  className={cn(
+                    "rounded-md border px-3 py-2.5",
+                    h.healthy ? "border-border bg-background" : "border-destructive/40 bg-destructive/5",
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-[12px] font-medium text-foreground">{h.label}</p>
+                    <span
+                      className={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        h.state === "closed" && "bg-chart-2",
+                        h.state === "half_open" && "bg-chart-4",
+                        h.state === "open" && "bg-destructive",
+                      )}
+                    />
+                  </div>
+                  <p className="mt-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {h.state.replace("_", " ")}
+                    {h.retryInSec != null && ` · retry ${h.retryInSec}s`}
+                  </p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground/70">
+                    {h.successCount} ok · {h.failures} fail · timeout {(h.timeoutMs / 1000).toFixed(0)}s
+                  </p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-4 rounded-md border border-dashed border-border px-4 py-6 text-center text-[12px] text-muted-foreground">
+              Provider breaker state appears here after the first request.
+            </p>
           )}
         </div>
 

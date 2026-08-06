@@ -128,6 +128,19 @@ export const list = query({
   },
 });
 
+/** Look up a key by its secret hash (used by the reverse-proxy HTTP API). */
+export const findByHash = query({
+  args: { keyHash: v.string() },
+  handler: async (ctx, { keyHash }) => {
+    const key = await ctx.db
+      .query("apiKeys")
+      .withIndex("by_keyHash", (q) => q.eq("keyHash", keyHash))
+      .first();
+    if (!key) return null;
+    return { id: key._id };
+  },
+});
+
 /** Full key + live usage statistics (owner only). */
 export const detail = query({
   args: { id: v.id("apiKeys") },

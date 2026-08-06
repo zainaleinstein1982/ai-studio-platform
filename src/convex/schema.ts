@@ -53,7 +53,19 @@ const schema = defineSchema(
       createdAt: v.number(),
       lastUsedAt: v.optional(v.number()),
       revokedAt: v.optional(v.number()),
-    }).index("by_user", ["userId"]),
+    })
+      .index("by_user", ["userId"])
+      .index("by_keyHash", ["keyHash"]),
+
+    // STEP 04 · Per-provider circuit breaker state.
+    circuitState: defineTable({
+      provider: v.string(),
+      state: v.union(v.literal("closed"), v.literal("open"), v.literal("half_open")),
+      failures: v.number(),
+      successCount: v.number(),
+      openedAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    }).index("by_provider", ["provider"]),
 
     // STEP 03 · Audit trail for key / role / org events.
     auditLogs: defineTable({
@@ -116,6 +128,19 @@ const schema = defineSchema(
       latencyMs: v.optional(v.number()),
       credits: v.number(), // cost charged on completion
       error: v.optional(v.string()),
+      // STEP 04 · gateway mechanics
+      stream: v.optional(v.boolean()), // deliver the response in chunks
+      simulateFailure: v.optional(v.boolean()), // dev tool: force provider outage
+      attempts: v.optional(v.number()), // provider attempts taken
+      events: v.optional(
+        v.array(
+          v.object({
+            stage: v.string(), // accepted|queued|dequeued|attempt|retry|chunk|completed|failed
+            at: v.number(),
+            detail: v.optional(v.string()),
+          }),
+        ),
+      ),
       createdAt: v.number(),
       startedAt: v.optional(v.number()),
       completedAt: v.optional(v.number()),
