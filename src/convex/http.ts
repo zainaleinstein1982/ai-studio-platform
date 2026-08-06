@@ -604,6 +604,38 @@ export const ivWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+/** Storage — GET /v1/storage/signed?key=<s3://…>&expires=<sec> (Bearer key) */
+export const v1StorageSigned = httpAction(async (ctx, request) => {
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  const url = new URL(request.url);
+  const objectKey = url.searchParams.get("key") ?? "";
+  if (!objectKey) return json({ error: "Missing key query param (s3://atelier-assets/…)" }, 400);
+  const expiresRaw = Number(url.searchParams.get("expires") ?? "3600");
+  const expiresInSec = Number.isFinite(expiresRaw) && expiresRaw > 0 ? expiresRaw : 3600;
+
+  try {
+    const signed = await ctx.runMutation(api.storage.generateSignedUrl, {
+      url: objectKey,
+      expiresInSec,
+    });
+    return json({
+      ok: true,
+      url: signed.url,
+      signedUrl: signed.signedUrl,
+      expiresAt: signed.expiresAt,
+      bucket: signed.bucket,
+      key: signed.key,
+      kind: signed.kind,
+      headers: signed.headers,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Signing failed";
+    return json({ error: msg }, 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
 http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "POST", handler: i3dWebhook });
@@ -618,6 +650,8 @@ http.route({ path: "/v1/text3d/tasks", method: "OPTIONS", handler: t3dSubmit });
 http.route({ pathPrefix: "/v1/image3d/tasks/", method: "GET", handler: i3dPoll });
 http.route({ path: "/v1/image3d/tasks", method: "POST", handler: i3dSubmit });
 http.route({ path: "/v1/image3d/tasks", method: "OPTIONS", handler: i3dSubmit });
+http.route({ path: "/v1/storage/signed", method: "GET", handler: v1StorageSigned });
+http.route({ path: "/v1/storage/signed", method: "OPTIONS", handler: v1StorageSigned });
 http.route({ pathPrefix: "/v1/webhooks/imageVideo/", method: "POST", handler: ivWebhook });
 http.route({ pathPrefix: "/v1/webhooks/imageVideo/", method: "OPTIONS", handler: ivWebhook });
 http.route({ pathPrefix: "/v1/webhooks/textVideo/", method: "POST", handler: tvWebhook });

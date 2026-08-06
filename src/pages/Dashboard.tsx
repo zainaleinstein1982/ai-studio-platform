@@ -7,6 +7,7 @@ import {
   Boxes,
   Clapperboard,
   CreditCard,
+  Database,
   History,
   Image as ImageIcon,
   KeyRound,
@@ -31,6 +32,7 @@ import { ProvidersTab } from "@/components/dashboard/ProvidersTab";
 import { Text3dTab } from "@/components/dashboard/Text3dTab";
 import { Image3dTab } from "@/components/dashboard/Image3dTab";
 import { VideoTab } from "@/components/dashboard/VideoTab";
+import { StorageTab } from "@/components/dashboard/StorageTab";
 import { cn } from "@/lib/utils";
 
 export type ConsoleTab =
@@ -39,6 +41,7 @@ export type ConsoleTab =
   | "text3d"
   | "image3d"
   | "video"
+  | "storage"
   | "providers"
   | "keys"
   | "history"
@@ -52,6 +55,7 @@ const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] =
   { id: "text3d", label: "Text → 3D", sub: "Prompt to GLB · FBX · OBJ", icon: Box },
   { id: "image3d", label: "Image → 3D", sub: "Reference photo to mesh", icon: ImageIcon },
   { id: "video", label: "Video", sub: "Text & image to film", icon: Clapperboard },
+  { id: "storage", label: "Storage", sub: "Buckets · signed URLs · caches", icon: Database },
   { id: "providers", label: "SDK", sub: "Providers & the six-operation contract", icon: Boxes },
   { id: "keys", label: "API Keys", sub: "Issue, reveal, and revoke keys", icon: KeyRound },
   { id: "history", label: "History", sub: "The full request ledger", icon: History },
@@ -260,6 +264,7 @@ export default function Dashboard() {
             {tab === "text3d" && <Text3dTab />}
             {tab === "image3d" && <Image3dTab />}
             {tab === "video" && <VideoTab />}
+            {tab === "storage" && <StorageTab />}
             {tab === "providers" && <ProvidersTab />}
             {tab === "keys" && <ApiKeysTab />}
             {tab === "history" && <HistoryTab />}

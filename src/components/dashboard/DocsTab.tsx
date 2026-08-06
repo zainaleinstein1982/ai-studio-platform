@@ -371,6 +371,52 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* storage service reference (STEP 09) */}
+      <div>
+        <SectionTitle kicker="STEP 09 · Storage" title="MinIO-style object storage" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Every artifact — meshes, clips, posters, previews, uploads — lives in an
+          S3-compatible bucket behind <span className="font-mono text-[12px] text-foreground">s3://atelier-assets/…</span> paths.
+          The Storage service registers those objects, serves them from the CDN edge
+          with per-tier cache headers, and issues HMAC-signed URLs. The Storage tab
+          indexes the artifacts produced by every module (SDK, Text→3D, Image→3D,
+          Text→Video, Image→Video) and lets you drive the caches live.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "MinIO · S3 compatible",
+              "Six buckets: 3d, image3d, video, images, sdk, requests. Each object is registered with bucket, key, cache tier, and a deterministic size — the same contract a MinIO or S3 gateway exposes.",
+            ],
+            [
+              "Signed URLs",
+              "GET /v1/storage/signed?key=s3://…&expires=3600 returns a presigned CDN URL — HMAC-SHA256 over the object key + expiry, verified on delivery. Expiry is clamped to 1 minute – 24 hours.",
+            ],
+            [
+              "Image cache · Preview cache",
+              "Uploads, cutouts, enhanced stills, posters, and render previews are cached for 7 days with public, immutable Cache-Control — safe for long-lived edge caching.",
+            ],
+            [
+              "Video cache · GLB cache",
+              "MP4 clips and GLB/FBX/OBJ meshes are cached for 30 days. Clips stream with Accept-Ranges support; meshes ship as immutable blobs with strong ETags.",
+            ],
+            [
+              "Eviction",
+              "The sweep drops expired entries and tombstones; over-capacity tiers evict least-recently-used first. Warm · Evict controls on the Storage tab drive the lifecycle.",
+            ],
+            [
+              "CDN ready",
+              "Every bucket maps to https://cdn.atelier.dev/<bucket>/<key> with Cache-Control, CDN-Cache-Control, and ETag headers — wire a real edge (CloudFront / Fastly) by pointing its origin at the storage gateway.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />

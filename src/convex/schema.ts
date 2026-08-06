@@ -286,6 +286,40 @@ const schema = defineSchema(
       .index("by_user_status", ["userId", "status"])
       .index("by_provider_status", ["provider", "status"]),
 
+    // STEP 09 · Storage service — registered objects (S3-compatible buckets).
+    storageObjects: defineTable({
+      userId: v.id("users"),
+      url: v.string(), // s3://atelier-assets/<bucket>/<key>
+      bucket: v.string(),
+      key: v.string(),
+      kind: v.string(), // image | video | glb | preview | other
+      sizeBytes: v.number(),
+      source: v.string(), // text3d | image3d | textVideo | imageVideo | sdk | manual
+      createdAt: v.number(),
+      accessedAt: v.optional(v.number()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_user_bucket", ["userId", "bucket"])
+      .index("by_user_url", ["userId", "url"]),
+
+    // STEP 09 · Storage cache — per-kind tiers (image · video · glb · preview).
+    storageCache: defineTable({
+      userId: v.id("users"),
+      key: v.string(), // "<bucket>/<key>"
+      url: v.string(),
+      bucket: v.string(),
+      kind: v.string(), // image | video | glb | preview | other
+      sizeBytes: v.number(),
+      hits: v.number(),
+      lastAccessAt: v.optional(v.number()),
+      expiresAt: v.number(),
+      createdAt: v.number(),
+      evicted: v.boolean(),
+    })
+      .index("by_user_kind", ["userId", "kind"])
+      .index("by_user_key", ["userId", "key"])
+      .index("by_user_created", ["userId", "createdAt"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),
