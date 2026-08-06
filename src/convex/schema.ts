@@ -37,16 +37,33 @@ const schema = defineSchema(
       plan: v.optional(v.string()), // billing plan id: starter | pro | scale
     }).index("email", ["email"]), // index for the email. do not remove or modify
 
-    // Atelier API Key Platform — live keys issued to users.
+    // Atelier API Key Platform — STEP 03: scopes, limits, expiry, webhooks.
     apiKeys: defineTable({
       userId: v.id("users"),
       name: v.string(),
       prefix: v.string(), // visible prefix, e.g. "apk_live_3f2a…"
       keyHash: v.string(), // sha-256 of the full secret (secret shown once)
+      scopes: v.optional(v.array(v.string())), // routes the key may call (undefined = all)
+      dailyLimit: v.optional(v.number()), // max requests per calendar day
+      monthlyLimit: v.optional(v.number()), // max requests per calendar month
+      quota: v.optional(v.number()), // lifetime credit budget
+      expiresAt: v.optional(v.number()), // key expiry (ms epoch)
+      webhookSecretHash: v.optional(v.string()), // sha-256 of webhook secret
+      webhookSecretPrefix: v.optional(v.string()), // e.g. "whsec_ab12…"
       createdAt: v.number(),
       lastUsedAt: v.optional(v.number()),
       revokedAt: v.optional(v.number()),
     }).index("by_user", ["userId"]),
+
+    // STEP 03 · Audit trail for key / role / org events.
+    auditLogs: defineTable({
+      userId: v.id("users"),
+      action: v.string(), // e.g. "key.created", "key.rotated", "role.changed"
+      targetType: v.string(), // "apiKey" | "user" | "organization"
+      targetId: v.optional(v.string()),
+      detail: v.optional(v.string()),
+      createdAt: v.number(),
+    }).index("by_user_created", ["userId", "createdAt"]),
 
     // STEP 02 · Organization & Team
     organizations: defineTable({
@@ -104,7 +121,8 @@ const schema = defineSchema(
       completedAt: v.optional(v.number()),
     })
       .index("by_user_created", ["userId", "createdAt"])
-      .index("by_user_status", ["userId", "status"]),
+      .index("by_user_status", ["userId", "status"])
+      .index("by_apiKey_created", ["apiKeyId", "createdAt"]),
   },
   {
     schemaValidation: false,

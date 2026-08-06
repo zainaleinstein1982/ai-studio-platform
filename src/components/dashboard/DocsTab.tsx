@@ -186,6 +186,11 @@ export function DocsTab() {
               ["Max image", "10 MB · png / jpeg / webp"],
               ["History", `${PLANS[0].features[2]} on Starter`],
               ["Retention", "indefinite on Pro & Scale"],
+              ["Key scopes", "per-route grants"],
+              ["Key limits", "daily / monthly / credit quota"],
+              ["Key expiry", "optional, per key"],
+              ["Webhook secret", "per key · regenerable"],
+              ["Audit log", "key & role events"],
             ].map(([k, v]) => (
               <div key={k} className="flex justify-between gap-4">
                 <dt>{k}</dt>

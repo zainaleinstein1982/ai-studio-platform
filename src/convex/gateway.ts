@@ -17,6 +17,7 @@ import {
 import { getCurrentUser } from "./users";
 import { requireUser } from "./permissions";
 import { enforceRateLimit } from "./rateLimit";
+import { checkGatewayKey } from "./apiKeys";
 
 /* ------------------------------------------------------------------ */
 /* Gateway router — entry point                                        */
@@ -62,11 +63,12 @@ export const send = mutation({
     }
 
     // Optional: route the request through one of the user's API keys.
+    // STEP 03 · the key's full policy is enforced: lifecycle, scopes, limits.
     if (args.apiKeyId) {
       const key = await ctx.db.get(args.apiKeyId);
-      if (!key || key.userId !== user._id || key.revokedAt) {
-        throw new Error("Invalid API key");
-      }
+      if (!key || key.userId !== user._id) throw new Error("Invalid API key");
+      const check = await checkGatewayKey(ctx, key, kind, Date.now());
+      if (!check.ok) throw new Error(check.reason);
       await ctx.runMutation(api.apiKeys.touch, { id: key._id });
     }
 

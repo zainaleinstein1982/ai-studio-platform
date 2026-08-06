@@ -29,6 +29,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { SectionTitle, StatusBadge, kindLabel, providerLabel } from "./bits";
 import { cn } from "@/lib/utils";
+import { isKeyActive, scopeAllows } from "@/convex/keyPolicy";
+import { useNow } from "@/hooks/use-now";
 import type { Id } from "@/convex/_generated/dataModel";
 
 const KINDS = Object.keys(KIND_META) as GatewayKind[];
@@ -66,7 +68,11 @@ export function GatewayTab() {
   const latest = requests?.[0];
   const meta = KIND_META[kind];
   const credits = stats?.credits ?? 0;
-  const activeKeys = (keys ?? []).filter((k) => !k.revokedAt);
+  // STEP 03 · only offer keys whose scopes grant this route and that are active.
+  const now = useNow();
+  const activeKeys = (keys ?? []).filter((k) => !k.revokedAt && isKeyActive(k, now));
+  const allowedKeys = activeKeys.filter((k) => scopeAllows(k.scopes, kind));
+  const effectiveApiKeyId = allowedKeys.some((k) => k.id === apiKeyId) ? apiKeyId : "auto";
 
   const cost = meta.credits;
   const canSend =
@@ -243,19 +249,24 @@ export function GatewayTab() {
               <Label className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                 Via API key
               </Label>
-              <Select value={apiKeyId} onValueChange={setApiKeyId}>
+              <Select value={effectiveApiKeyId} onValueChange={setApiKeyId}>
                 <SelectTrigger className="mt-2 border-border bg-background">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="auto">Auto (no key)</SelectItem>
-                  {activeKeys.map((k) => (
+                  {allowedKeys.map((k) => (
                     <SelectItem key={k.id} value={k.id}>
                       {k.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="mt-1.5 text-[10.5px] text-muted-foreground">
+                {allowedKeys.length === 0
+                  ? `No keys grant the ${meta.label} route — edit a key's scopes in API Keys.`
+                  : `${allowedKeys.length} key${allowedKeys.length > 1 ? "s" : ""} grant${allowedKeys.length === 1 ? "s" : ""} this route.`}
+              </p>
             </div>
           </div>
 

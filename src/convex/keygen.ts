@@ -30,3 +30,18 @@ export async function sha256Hex(input: string): Promise<string> {
 export function secretPrefix(secret: string): string {
   return `${secret.slice(0, 16)}…`;
 }
+
+/* ------------------------------------------------------------------ */
+/* Webhook secrets                                                     */
+/* ------------------------------------------------------------------ */
+
+export const WEBHOOK_PREFIX = "whsec_";
+
+export function generateWebhookSecret(): string {
+  // 32 random bytes → 64 hex chars after the prefix.
+  return `${WEBHOOK_PREFIX}${randomHex(32)}`;
+}
+
+export function webhookSecretPrefix(secret: string): string {
+  return `${secret.slice(0, 12)}…`;
+}
