@@ -347,6 +347,35 @@ const schema = defineSchema(
       .index("by_user_status", ["userId", "status"])
       .index("by_user_queue", ["userId", "queue"]),
 
+    // STEP 12 · Billing — ledger of every financial event (plans · top-ups · usage).
+    invoices: defineTable({
+      userId: v.id("users"),
+      number: v.string(), // e.g. "INV-202608-0007"
+      kind: v.union(
+        v.literal("plan"),
+        v.literal("topup"),
+        v.literal("usage"),
+        v.literal("adjustment"),
+      ),
+      status: v.union(v.literal("paid"), v.literal("pending"), v.literal("failed")),
+      description: v.string(),
+      items: v.array(
+        v.object({
+          label: v.string(),
+          credits: v.number(), // positive = credit, negative = charge
+          dollars: v.number(),
+        }),
+      ),
+      creditsDelta: v.number(), // net credit movement on the balance
+      amount: v.number(), // dollars charged
+      periodStart: v.optional(v.number()),
+      periodEnd: v.optional(v.number()),
+      planId: v.optional(v.string()),
+      paymentMethod: v.optional(v.string()),
+      createdAt: v.number(),
+      paidAt: v.optional(v.number()),
+    }).index("by_user_created", ["userId", "createdAt"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

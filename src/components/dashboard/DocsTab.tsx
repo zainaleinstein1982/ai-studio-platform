@@ -510,6 +510,51 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* billing reference (STEP 12) */}
+      <div>
+        <SectionTitle kicker="STEP 12 · Billing" title="The credit ledger" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Every credit movement is a first-class ledger event. Plans grant monthly
+          allowances, top-ups buy packs, and completed calls meter usage — each one
+          produces an invoice (<span className="font-mono text-[12px] text-foreground">INV-202608-0007</span>) that
+          reconciles against the balance. The math lives in a pure, unit-tested core;
+          the Billing tab shows the whole ledger live.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Credit packages",
+              "Four top-up tiers (500 / 2,000 / 5,000 / 12,000 credits at $5–$99). Buying one credits the balance instantly and writes a paid top-up invoice.",
+            ],
+            [
+              "Plans · proration",
+              "Switching mid-cycle prorates the allowance for the days remaining (e.g. 16/31 days left keeps 16/31 of the new allowance) and records a plan invoice with the period.",
+            ],
+            [
+              "Usage metering",
+              "Completed gateway calls inside the current cycle are metered by provider and by route, priced at the plan's per-credit value (price ÷ monthly allowance) for a month-to-date cost.",
+            ],
+            [
+              "Billing cycle",
+              "Cycles follow the calendar month: the hero shows the month, day-of-cycle, a progress meter, and the next billing date (with correct year rollover).",
+            ],
+            [
+              "Invoices",
+              "Numbered INV-YYYYMM-NNNN, typed (plan · top-up · usage · adjustment) with status (paid · pending · failed), line items, credit deltas, and dollar amounts.",
+            ],
+            [
+              "Payment provider",
+              "The ledger is Stripe-ready: a card is on file and purchases are wired to become checkout sessions during Deployment. Wire AUTUMN_API_KEY + STRIPE_* keys to charge for real; payment webhooks flip pending invoices to paid.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />
