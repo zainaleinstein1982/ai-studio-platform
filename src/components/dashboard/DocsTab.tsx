@@ -461,6 +461,55 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* dashboard reference (STEP 11) */}
+      <div>
+        <SectionTitle kicker="STEP 11 · Dashboard" title="Mission Control" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          The default console tab is a single reactive cockpit over every module — a dark,
+          gallery-clean Mission Control that updates live as work flows through the
+          platform. It aggregates one payload (<span className="font-mono text-[12px] text-foreground">dashboard.missionControl</span>)
+          from the gateway, provider manager, task queue, storage service, API key
+          platform, billing, and the 3D / video pipelines.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Command strip",
+              "A live UTC clock (ticking every second), platform status derived from provider circuit breakers, the current plan, and the credit balance — the at-a-glance heartbeat of the platform.",
+            ],
+            [
+              "Provider status",
+              "Every upstream's breaker state (closed · half_open · open) with success/failure counts and retry-in seconds. The header chip aggregates to healthy / at risk / down plus an uptime percentage.",
+            ],
+            [
+              "Task queue",
+              "Pool pressure (queued + retrying vs. worker capacity), the 4 worker slots, and per-queue backlog bars — gateway, text→3D, image→3D, video, SDK, storage.",
+            ],
+            [
+              "Analytics · Usage",
+              "A 7-day dual-bar chart (credits + requests) beside provider-level credit usage, computed from the gateway ledger's per-day and per-provider aggregates.",
+            ],
+            [
+              "Revenue · Billing",
+              "MRR from the plan price, a per-credit dollar value (price ÷ monthly allowance), and an estimated month-to-date figure from completed request credits.",
+            ],
+            [
+              "Users · API Keys · Storage",
+              "Team size across organizations (plus the platform user count for admins), active vs. revoked keys, and object counts / cache entries / hits from the storage service.",
+            ],
+            [
+              "Realtime progress",
+              "A merged activity feed (gateway · SDK · queue) sorts newest-first; in-flight items animate an estimated progress bar via a 1s clock while Convex subscriptions push status changes the moment they happen.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />

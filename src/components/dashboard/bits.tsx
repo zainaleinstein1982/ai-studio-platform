@@ -97,7 +97,7 @@ export function StatCard({
 }: {
   label: string;
   value: string | number;
-  sub?: string;
+  sub?: React.ReactNode;
   accent?: boolean;
 }) {
   return (

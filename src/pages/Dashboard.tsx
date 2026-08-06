@@ -53,7 +53,7 @@ export type ConsoleTab =
   | "account";
 
 const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] = [
-  { id: "overview", label: "Overview", sub: "Usage at a glance", icon: LayoutDashboard },
+  { id: "overview", label: "Mission Control", sub: "Live status · providers · revenue", icon: LayoutDashboard },
   { id: "gateway", label: "Gateway", sub: "Compose and route requests", icon: Send },
   { id: "text3d", label: "Text → 3D", sub: "Prompt to GLB · FBX · OBJ", icon: Box },
   { id: "image3d", label: "Image → 3D", sub: "Reference photo to mesh", icon: ImageIcon },
