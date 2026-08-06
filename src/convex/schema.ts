@@ -372,9 +372,35 @@ const schema = defineSchema(
       periodEnd: v.optional(v.number()),
       planId: v.optional(v.string()),
       paymentMethod: v.optional(v.string()),
+      // STEP 12 · payment providers (Stripe · Midtrans · Xendit)
+      paymentProvider: v.optional(v.string()), // stripe | midtrans | xendit
+      paymentId: v.optional(v.string()), // provider session / order id
+      payUrl: v.optional(v.string()), // hosted checkout URL
+      mode: v.optional(v.string()), // live | sandbox | simulated
+      currency: v.optional(v.string()), // usd | idr
+      method: v.optional(v.string()), // qris | card | gopay | …
       createdAt: v.number(),
       paidAt: v.optional(v.number()),
     }).index("by_user_created", ["userId", "createdAt"]),
+
+    // STEP 12 · Billing — recurring subscription record (per user).
+    subscriptions: defineTable({
+      userId: v.id("users"),
+      provider: v.string(), // stripe | midtrans | xendit
+      planId: v.string(),
+      status: v.union(
+        v.literal("active"),
+        v.literal("past_due"),
+        v.literal("canceled"),
+        v.literal("expired"),
+      ),
+      currentPeriodStart: v.number(),
+      currentPeriodEnd: v.number(),
+      renewsAt: v.number(),
+      cancelAtPeriodEnd: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_user", ["userId"]),
 
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({

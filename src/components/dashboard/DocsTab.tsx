@@ -543,8 +543,28 @@ export function DocsTab() {
               "Numbered INV-YYYYMM-NNNN, typed (plan · top-up · usage · adjustment) with status (paid · pending · failed), line items, credit deltas, and dollar amounts.",
             ],
             [
-              "Payment provider",
-              "The ledger is Stripe-ready: a card is on file and purchases are wired to become checkout sessions during Deployment. Wire AUTUMN_API_KEY + STRIPE_* keys to charge for real; payment webhooks flip pending invoices to paid.",
+              "Payment providers",
+              "Three gateways on checkout — Stripe (global cards · USD), Midtrans, and Xendit (Indonesia · IDR, with QRIS, GoPay / OVO / DANA / ShopeePay e-wallets, and bank transfer VAs). Each carries its own currency, fee rate, and method list.",
+            ],
+            [
+              "Checkout sessions",
+              "Buying a pack creates a pending invoice, then a hosted checkout session (session id, pay URL, 2-hour TTL). With provider keys wired the node action opens a real Stripe Checkout / Midtrans Snap / Xendit invoice; without them it falls back to a deterministic simulated session the console can settle.",
+            ],
+            [
+              "Subscription",
+              "Plans run as recurring subscriptions: status (active · canceled · expired), renews-at date, days left, and the next charge. Cancel stops renewal at period end; reactivate resumes it. Switching plans re-keys the subscription to the new allowance.",
+            ],
+            [
+              "Payment webhooks",
+              "POST /v1/billing/webhooks/:provider (stripe | midtrans | xendit) verifies each provider's signature (Stripe-Signature HMAC, Midtrans signature_key, Xendit callback token), normalizes the payload, and reconciles the pending invoice idempotently — paid flips status + credits the balance.",
+            ],
+            [
+              "Revenue dashboard",
+              "A 14-day revenue view over the paid ledger: gross vs. net after provider fees, splits by payment provider and by invoice kind, and a daily bar chart — computed by the same pure core the unit tests cover.",
+            ],
+            [
+              "Going live",
+              "Paste STRIPE_SECRET_KEY (+ STRIPE_WEBHOOK_SECRET), MIDTRANS_SERVER_KEY, or XENDIT_API_KEY (+ XENDIT_CALLBACK_TOKEN) into the project keys and checkouts switch from simulated to real automatically — no code changes.",
             ],
           ].map(([title, body]) => (
             <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">

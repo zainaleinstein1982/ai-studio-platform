@@ -13,6 +13,13 @@ import { httpAction, type ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { auth } from "./auth";
 import { sha256Hex } from "./keygen";
+import {
+  midtransSignatureKey,
+  normalizePaymentEvent,
+  parseStripeHeader,
+  safeEqual,
+  stripeV1Signature,
+} from "./billing/core";
 
 const http = httpRouter();
 
@@ -636,8 +643,90 @@ export const v1StorageSigned = httpAction(async (ctx, request) => {
   }
 });
 
+/**
+ * STEP 12 · Billing webhook — POST /v1/billing/webhooks/:provider
+ * (stripe | midtrans | xendit). Verifies the provider signature, normalizes
+ * the payload, and reconciles the pending invoice.
+ */
+export const billingWebhook = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const pathname = new URL(request.url).pathname;
+  const provider = pathname.replace(/^\/v1\/billing\/webhooks\//, "").toLowerCase();
+  if (!["stripe", "midtrans", "xendit"].includes(provider)) {
+    return json({ error: "Unsupported payment provider" }, 400);
+  }
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  // Demo hook — lets the console simulate provider deliveries without keys.
+  const demo = request.headers.get("x-atelier-test") === "1";
+
+  // Signature verification per provider.
+  if (provider === "stripe") {
+    const header = request.headers.get("stripe-signature") ?? "";
+    if (!header) return json({ error: "Missing Stripe-Signature header" }, 401);
+    const parsed = parseStripeHeader(header);
+    if (!parsed) return json({ error: "Malformed Stripe-Signature header" }, 401);
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    const ok = secret
+      ? parsed.signatures.some((s) => safeEqual(s, stripeV1Signature(parsed.timestamp, payload, secret)))
+      : demo;
+    if (!ok) return json({ error: "Invalid Stripe signature" }, 401);
+  } else if (provider === "midtrans") {
+    const sig = typeof body.signature_key === "string" ? body.signature_key : "";
+    if (!sig) return json({ error: "Missing signature_key" }, 401);
+    const serverKey = process.env.MIDTRANS_SERVER_KEY;
+    const orderId = typeof body.order_id === "string" ? body.order_id : "";
+    const statusCode = typeof body.status_code === "string" ? body.status_code : "";
+    const gross = typeof body.gross_amount === "string" ? body.gross_amount : String(body.gross_amount ?? "");
+    const expected = serverKey ? midtransSignatureKey(orderId, statusCode, gross, serverKey) : null;
+    const ok = expected ? safeEqual(sig, expected) : demo;
+    if (!ok) return json({ error: "Invalid Midtrans signature" }, 401);
+  } else {
+    const token = request.headers.get("x-callback-token") ?? "";
+    if (!token) return json({ error: "Missing x-callback-token header" }, 401);
+    const expected = process.env.XENDIT_CALLBACK_TOKEN;
+    const ok = expected ? safeEqual(token, expected) : demo;
+    if (!ok) return json({ error: "Invalid Xendit callback token" }, 401);
+  }
+
+  const ev = normalizePaymentEvent(provider, body);
+  if (!ev) return json({ error: "Payload did not normalize" }, 400);
+
+  try {
+    const result = await ctx.runMutation(api.billing.applyPaymentEvent, {
+      provider: ev.provider,
+      externalId: ev.externalId,
+      event: ev.event,
+      status: ev.status,
+      invoiceRef: ev.invoiceRef,
+      amount: ev.amount,
+      method: ev.method,
+    });
+    return json({ ...result, ok: true });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
+http.route({ pathPrefix: "/v1/billing/webhooks/", method: "POST", handler: billingWebhook });
+http.route({ pathPrefix: "/v1/billing/webhooks/", method: "OPTIONS", handler: billingWebhook });
 http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "POST", handler: i3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "OPTIONS", handler: i3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/text3d/", method: "POST", handler: t3dWebhook });
