@@ -1,9 +1,17 @@
 // Shared email delivery for auth flows (OTP sign-in, password reset,
 // email verification). Reuses the freebuff OTP gateway.
+//
+// The relay key is read from FB_EMAIL_API_KEY (Convex dashboard env). The
+// literal fallback is Freebuff's shared OTP relay key — the same value ships
+// in every Freebuff template, so it is a platform integration key rather than
+// a personal secret. Set FB_EMAIL_API_KEY in your own deployment and remove
+// the fallback to keep zero keys in the repository.
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
 import axios from "axios";
 
 const OTP_ALPHABET = "0123456789";
+const EMAIL_API_KEY =
+  process.env.FB_EMAIL_API_KEY ?? "fb_email_2crN1hqIArZP2bEfvjp5Qik4";
 
 export function generateDigitToken(length = 6): string {
   const random: RandomReader = {
@@ -24,7 +32,7 @@ export async function sendOtpEmail(identifier: string, token: string): Promise<v
     },
     {
       headers: {
-        "x-api-key": "fb_email_2crN1hqIArZP2bEfvjp5Qik4",
+        "x-api-key": EMAIL_API_KEY,
       },
     },
   );
