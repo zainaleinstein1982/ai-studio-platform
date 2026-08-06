@@ -113,6 +113,45 @@ const schema = defineSchema(
       createdAt: v.number(),
     }).index("by_key", ["key"]),
 
+    // STEP 05 · Provider SDK jobs — one row per generate() call.
+    providerJobs: defineTable({
+      userId: v.id("users"),
+      provider: v.string(),
+      model: v.string(),
+      prompt: v.string(),
+      imageName: v.optional(v.string()),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+      durationMs: v.number(),
+      outputText: v.optional(v.string()),
+      outputUrl: v.optional(v.string()),
+      error: v.optional(v.string()),
+      attempts: v.optional(v.number()),
+      createdAt: v.number(),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_provider_status", ["provider", "status"]),
+
+    // STEP 05 · Provider SDK webhook signing secrets (per provider).
+    // The raw secret is stored so inbound webhook signatures can be verified
+    // (like Stripe); it is only ever shown once in the console.
+    providerWebhookSecrets: defineTable({
+      userId: v.id("users"),
+      provider: v.string(),
+      secret: v.string(), // e.g. "whsec_…"
+      secretPrefix: v.string(), // e.g. "whsec_ab12…"
+      createdAt: v.number(),
+    })
+      .index("by_user_provider", ["userId", "provider"])
+      .index("by_user", ["userId"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

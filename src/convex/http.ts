@@ -2,10 +2,12 @@
 //
 //   POST /v1/:kind          Authorization: Bearer apk_live_…
 //   GET  /v1/requests/:id   Authorization: Bearer apk_live_…
+//   POST /v1/webhooks/:provider   X-Atelier-Signature: sha256=…
 //
 // The proxy validates the key (sha-256 lookup), enforces the key policy and
 // circuit breaker, then enqueues the request through the same worker pipeline
-// the console uses.
+// the console uses. Webhook deliveries are HMAC-verified against the
+// provider's signing secret before the job is reconciled.
 import { httpRouter } from "convex/server";
 import { httpAction, type ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
@@ -122,8 +124,60 @@ export const v1Get = httpAction(async (ctx, request) => {
   });
 });
 
+/** Inbound provider webhook — POST /v1/webhooks/:provider */
+export const webhookReceiver = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS });
+  }
+  if (request.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
+  }
+
+  const pathname = new URL(request.url).pathname;
+  const provider = pathname.replace(/^\/v1\/webhooks\//, "").toLowerCase();
+  if (!provider) return json({ error: "Missing provider" }, 400);
+
+  const signature = request.headers.get("x-atelier-signature") ?? "";
+  if (!signature) return json({ error: "Missing X-Atelier-Signature header" }, 401);
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+
+  const jobId = typeof body.jobId === "string" ? body.jobId : "";
+  const event = typeof body.event === "string" ? body.event : "";
+  if (!jobId || !event) {
+    return json({ error: "Body must include jobId and event" }, 400);
+  }
+
+  try {
+    const result = await ctx.runMutation(api.sdk.verifyAndApplyWebhook, {
+      jobId: jobId as never,
+      event,
+      payload,
+      signature,
+    });
+    return json({ ok: true, jobId, status: result.status });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, msg.toLowerCase().includes("signature") ? 401 : 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
+http.route({ pathPrefix: "/v1/webhooks/", method: "POST", handler: webhookReceiver });
+http.route({ pathPrefix: "/v1/webhooks/", method: "OPTIONS", handler: webhookReceiver });
 http.route({ pathPrefix: "/v1/", method: "POST", handler: v1Proxy });
 http.route({ pathPrefix: "/v1/", method: "OPTIONS", handler: v1Proxy });
 

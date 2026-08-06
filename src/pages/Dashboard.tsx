@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import {
   BookOpen,
+  Boxes,
   CreditCard,
   History,
   KeyRound,
@@ -23,11 +24,13 @@ import { HistoryTab } from "@/components/dashboard/HistoryTab";
 import { BillingTab } from "@/components/dashboard/BillingTab";
 import { DocsTab } from "@/components/dashboard/DocsTab";
 import { AccountTab } from "@/components/dashboard/AccountTab";
+import { ProvidersTab } from "@/components/dashboard/ProvidersTab";
 import { cn } from "@/lib/utils";
 
 export type ConsoleTab =
   | "overview"
   | "gateway"
+  | "providers"
   | "keys"
   | "history"
   | "billing"
@@ -37,6 +40,7 @@ export type ConsoleTab =
 const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] = [
   { id: "overview", label: "Overview", sub: "Usage at a glance", icon: LayoutDashboard },
   { id: "gateway", label: "Gateway", sub: "Compose and route requests", icon: Send },
+  { id: "providers", label: "SDK", sub: "Providers & the six-operation contract", icon: Boxes },
   { id: "keys", label: "API Keys", sub: "Issue, reveal, and revoke keys", icon: KeyRound },
   { id: "history", label: "History", sub: "The full request ledger", icon: History },
   { id: "billing", label: "Billing", sub: "Credits, plans, and usage", icon: CreditCard },
@@ -241,6 +245,7 @@ export default function Dashboard() {
           >
             {tab === "overview" && <OverviewTab onNavigate={go} />}
             {tab === "gateway" && <GatewayTab />}
+            {tab === "providers" && <ProvidersTab />}
             {tab === "keys" && <ApiKeysTab />}
             {tab === "history" && <HistoryTab />}
             {tab === "billing" && <BillingTab />}

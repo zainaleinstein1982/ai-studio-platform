@@ -181,6 +181,52 @@ export function DocsTab() {
         </Step>
       </div>
 
+      {/* provider SDK reference (STEP 05) */}
+      <div>
+        <SectionTitle kicker="STEP 05 · Provider SDK" title="Six operations, fifteen providers" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Every upstream implements the same contract: <span className="font-mono text-[12px] text-foreground">authenticate</span>,{" "}
+          <span className="font-mono text-[12px] text-foreground">generate</span>,{" "}
+          <span className="font-mono text-[12px] text-foreground">status</span>,{" "}
+          <span className="font-mono text-[12px] text-foreground">cancel</span>,{" "}
+          <span className="font-mono text-[12px] text-foreground">download</span>,{" "}
+          <span className="font-mono text-[12px] text-foreground">webhook</span>. The SDK tab drives a live job through all six.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Authenticate",
+              "Credentials are validated against the provider's key format (prefix + length) before any request leaves the platform. In production this calls the provider's auth endpoint.",
+            ],
+            [
+              "Generate",
+              "Creates a job: model + prompt (+ optional image). Each provider carries its own models, timeout (45–120s), and simulated duration — video and 3D take the longest.",
+            ],
+            [
+              "Status",
+              "Jobs move queued → processing → completed | failed. The scheduler advances them on a fixed cadence; the console shows a live progress bar.",
+            ],
+            [
+              "Cancel",
+              "Queued and processing jobs can be cancelled; terminal jobs are immutable. Cancelled jobs never produce a downloadable artifact.",
+            ],
+            [
+              "Download",
+              "Completed jobs expose their artifact (text, PNG, GLB, MP4, MP3) as text + an asset URL. Downloading a non-completed job returns an error.",
+            ],
+            [
+              "Webhook",
+              "Each provider has a per-account signing secret (whsec_…). Payloads are HMAC-SHA256 signed; inbound deliveries hit POST /v1/webhooks/:provider with an X-Atelier-Signature header and are verified before the job is reconciled.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />
