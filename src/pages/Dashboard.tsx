@@ -12,6 +12,7 @@ import {
   Image as ImageIcon,
   KeyRound,
   LayoutDashboard,
+  ListOrdered,
   LogOut,
   Send,
   UserRound,
@@ -33,6 +34,7 @@ import { Text3dTab } from "@/components/dashboard/Text3dTab";
 import { Image3dTab } from "@/components/dashboard/Image3dTab";
 import { VideoTab } from "@/components/dashboard/VideoTab";
 import { StorageTab } from "@/components/dashboard/StorageTab";
+import { QueueTab } from "@/components/dashboard/QueueTab";
 import { cn } from "@/lib/utils";
 
 export type ConsoleTab =
@@ -42,6 +44,7 @@ export type ConsoleTab =
   | "image3d"
   | "video"
   | "storage"
+  | "queue"
   | "providers"
   | "keys"
   | "history"
@@ -56,6 +59,7 @@ const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] =
   { id: "image3d", label: "Image → 3D", sub: "Reference photo to mesh", icon: ImageIcon },
   { id: "video", label: "Video", sub: "Text & image to film", icon: Clapperboard },
   { id: "storage", label: "Storage", sub: "Buckets · signed URLs · caches", icon: Database },
+  { id: "queue", label: "Queue", sub: "Redis workers · priority · DLQ", icon: ListOrdered },
   { id: "providers", label: "SDK", sub: "Providers & the six-operation contract", icon: Boxes },
   { id: "keys", label: "API Keys", sub: "Issue, reveal, and revoke keys", icon: KeyRound },
   { id: "history", label: "History", sub: "The full request ledger", icon: History },
@@ -265,6 +269,7 @@ export default function Dashboard() {
             {tab === "image3d" && <Image3dTab />}
             {tab === "video" && <VideoTab />}
             {tab === "storage" && <StorageTab />}
+            {tab === "queue" && <QueueTab />}
             {tab === "providers" && <ProvidersTab />}
             {tab === "keys" && <ApiKeysTab />}
             {tab === "history" && <HistoryTab />}

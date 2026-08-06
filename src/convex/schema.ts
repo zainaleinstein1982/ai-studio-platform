@@ -320,6 +320,33 @@ const schema = defineSchema(
       .index("by_user_key", ["userId", "key"])
       .index("by_user_created", ["userId", "createdAt"]),
 
+    // STEP 10 · Queue system — jobs (Redis/Celery-style priority queue).
+    queueJobs: defineTable({
+      userId: v.id("users"),
+      queue: v.string(), // gateway | text3d | image3d | video | sdk | storage
+      priority: v.union(v.literal("high"), v.literal("normal"), v.literal("low")),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("dead"),
+      ),
+      attempts: v.number(),
+      maxAttempts: v.number(),
+      payload: v.string(),
+      createdAt: v.number(),
+      dueAt: v.number(),
+      claimedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+      lastError: v.optional(v.string()),
+      backoffMs: v.number(),
+      forceFailure: v.optional(v.boolean()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_user_queue", ["userId", "queue"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

@@ -417,6 +417,50 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* queue system reference (STEP 10) */}
+      <div>
+        <SectionTitle kicker="STEP 10 · Queue" title="Redis / Celery-style task queue" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Every pipeline runs on the same task queue: enqueue (priority + delay) →
+          scheduler tick → worker claim → retry with exponential backoff → completed
+          or the dead letter queue. The Queue tab drives the whole lifecycle live,
+          including a force-failure switch that deliberately exercises the DLQ.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Redis · priority",
+              "Jobs land in the queue with strict priority (high → normal → low) and FIFO order within a priority. Delayed jobs stay invisible until their due time passes — the Redis zset equivalent.",
+            ],
+            [
+              "Celery · workers",
+              "A shared worker pool of 4 slots claims due jobs up to the free capacity. The Queue tab shows each worker slot (idle / processing) as jobs stream through.",
+            ],
+            [
+              "Scheduler",
+              "A scheduled tick keeps itself alive while work remains: it claims due jobs, schedules their simulated processing, and wakes again when the next delayed job becomes due.",
+            ],
+            [
+              "Retry · backoff",
+              "Failed jobs are requeued with exponential backoff (1.2s → 2.4s → 4.8s, capped at 60s) and reclaimed once the backoff passes. Every retry is visible in the job ledger.",
+            ],
+            [
+              "Dead letter queue",
+              "Jobs that exhaust maxAttempts (3) move to the dead letter queue. Requeue resets attempts and sends them back through the pipeline; purge deletes them.",
+            ],
+            [
+              "Concurrency",
+              "The pool never exceeds 4 in-flight jobs — claimNext subtracts in-flight work from the free slots, so bursts backpressure instead of overwhelming the workers.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />
