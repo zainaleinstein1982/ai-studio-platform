@@ -227,6 +227,53 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* text→3d module reference (STEP 06) */}
+      <div>
+        <SectionTitle kicker="STEP 06 · Text → 3D" title="The thirteen-stage workflow" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          Prompts become watertight meshes through a single pipeline: receive → validate →
+          optimize → router → submit → poll → download (GLB · FBX · OBJ) → history → retry →
+          webhook → storage. The Text → 3D tab walks you through every stage live.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Validate",
+              "Prompts are checked for length and content before anything is submitted. Errors are surfaced inline in the composer.",
+            ],
+            [
+              "Optimize",
+              "Each provider gets a tuned rewrite: Tripo favours watertight printable geometry, Meshy PBR game-ready detail, Hunyuan3D organic realtime silhouettes.",
+            ],
+            [
+              "Provider router",
+              "Keyword hints (print / game / organic) plus an optional explicit preference pick the upstream and default model. The choice is previewed live as you type.",
+            ],
+            [
+              "Submit · Poll",
+              "Tasks are queued, then a scheduled worker advances them queued → processing → completed with deterministic provider timing.",
+            ],
+            [
+              "Download",
+              "Completed tasks expose three exports — GLB (glTF 2.0), FBX, and OBJ — from the asset bucket. The HTTP API serves GET /v1/text3d/tasks/:id/download?format=glb|fbx|obj.",
+            ],
+            [
+              "History · Retry",
+              "Every submission lands in the ledger. Failed tasks can be retried up to 3 times, each attempt re-queued with fresh timing.",
+            ],
+            [
+              "Webhook · Storage",
+              "Signed HMAC-SHA256 deliveries reconcile tasks via POST /v1/webhooks/text3d/:taskId. Final artifacts persist to the 3D asset bucket for 30 days.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />

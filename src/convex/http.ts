@@ -174,10 +174,118 @@ export const webhookReceiver = httpAction(async (ctx, request) => {
   }
 });
 
+/** Text→3D — POST /v1/text3d/tasks (Bearer key) */
+export const t3dSubmit = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const prompt = typeof body.prompt === "string" ? body.prompt : "";
+  if (!prompt.trim()) return json({ error: "Missing prompt" }, 400);
+
+  try {
+    const { taskId, status } = await ctx.runMutation(api.textTo3d.createViaKey, {
+      keyId: key.id,
+      prompt,
+      preferredProvider:
+        typeof body.preferredProvider === "string" ? body.preferredProvider : undefined,
+      preferredModel: typeof body.preferredModel === "string" ? body.preferredModel : undefined,
+    });
+    return json(
+      { id: taskId, status, statusUrl: `/v1/text3d/tasks/${taskId}` },
+      202,
+    );
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Text→3D submission failed";
+    return json({ error: msg }, msg.toLowerCase().includes("key") ? 401 : 400);
+  }
+});
+
+/** Text→3D — GET /v1/text3d/tasks/:id · GET /v1/text3d/tasks/:id/download */
+export const t3dPoll = httpAction(async (ctx, request) => {
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  const pathname = new URL(request.url).pathname;
+  const rest = pathname.replace(/^\/v1\/text3d\/tasks\//, "");
+  const download = rest.endsWith("/download");
+  const id = download ? rest.replace(/\/download$/, "") : rest;
+  if (!id) return json({ error: "Missing task id" }, 400);
+
+  const task = await ctx.runQuery(api.textTo3d.getPublic, { taskId: id as never });
+  if (!task) return json({ error: "Task not found" }, 404);
+
+  if (download) {
+    if (task.status !== "completed" || !task.outputs) {
+      return json({ error: `Task is ${task.status} — export not ready` }, 409);
+    }
+    const format = new URL(request.url).searchParams.get("format") ?? "glb";
+    const url = task.outputs[format as "glb" | "fbx" | "obj"];
+    if (!url) return json({ error: `Unknown format "${format}"` }, 400);
+    return json({ taskId: id, format, url, expiresIn: "30d" });
+  }
+
+  return json(task);
+});
+
+/** Text→3D webhook — POST /v1/webhooks/text3d/:taskId */
+export const t3dWebhook = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const pathname = new URL(request.url).pathname;
+  const taskId = pathname.replace(/^\/v1\/webhooks\/text3d\//, "");
+  if (!taskId) return json({ error: "Missing task id" }, 400);
+
+  const signature = request.headers.get("x-atelier-signature") ?? "";
+  if (!signature) return json({ error: "Missing X-Atelier-Signature header" }, 401);
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const event = typeof body.event === "string" ? body.event : "";
+  if (!event) return json({ error: "Body must include event" }, 400);
+
+  try {
+    const result = await ctx.runMutation(api.textTo3d.verifyAndApplyWebhook, {
+      taskId: taskId as never,
+      event,
+      payload,
+      signature,
+    });
+    return json({ ok: true, taskId, status: result.status });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, msg.toLowerCase().includes("signature") ? 401 : 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
+http.route({ pathPrefix: "/v1/webhooks/text3d/", method: "POST", handler: t3dWebhook });
+http.route({ pathPrefix: "/v1/webhooks/text3d/", method: "OPTIONS", handler: t3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/", method: "POST", handler: webhookReceiver });
 http.route({ pathPrefix: "/v1/webhooks/", method: "OPTIONS", handler: webhookReceiver });
+http.route({ pathPrefix: "/v1/text3d/tasks/", method: "GET", handler: t3dPoll });
+http.route({ path: "/v1/text3d/tasks", method: "POST", handler: t3dSubmit });
+http.route({ path: "/v1/text3d/tasks", method: "OPTIONS", handler: t3dSubmit });
 http.route({ pathPrefix: "/v1/", method: "POST", handler: v1Proxy });
 http.route({ pathPrefix: "/v1/", method: "OPTIONS", handler: v1Proxy });
 
