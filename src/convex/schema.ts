@@ -180,6 +180,39 @@ const schema = defineSchema(
       .index("by_user_status", ["userId", "status"])
       .index("by_provider_status", ["provider", "status"]),
 
+    // STEP 07 · Image → 3D module — one row per submitted image task.
+    image3dTasks: defineTable({
+      userId: v.id("users"),
+      provider: v.string(), // meshy | tripo | hunyuan3d
+      model: v.string(),
+      imageName: v.string(),
+      imageUrl: v.string(), // downscaled data URL of the upload
+      width: v.number(),
+      height: v.number(),
+      caption: v.string(), // vision caption (simulated pipeline)
+      optimizedPrompt: v.string(),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+      durationMs: v.number(),
+      attempts: v.number(),
+      error: v.optional(v.string()),
+      previewUrl: v.optional(v.string()),
+      glbUrl: v.optional(v.string()),
+      fbxUrl: v.optional(v.string()),
+      objUrl: v.optional(v.string()),
+      createdAt: v.number(),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+    })
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_provider_status", ["provider", "status"]),
+
     // Atelier AI Gateway — every routed request, from queue to billing.
     gatewayRequests: defineTable({
       userId: v.id("users"),

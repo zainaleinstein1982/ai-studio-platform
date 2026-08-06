@@ -277,8 +277,122 @@ export const t3dWebhook = httpAction(async (ctx, request) => {
   }
 });
 
+/** Image→3D — POST /v1/image3d/tasks (Bearer key, base64 image in JSON) */
+export const i3dSubmit = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  let body: Record<string, unknown> = {};
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const imageUrl = typeof body.imageUrl === "string" ? body.imageUrl : "";
+  const imageName = typeof body.imageName === "string" ? body.imageName : "image.png";
+  if (!imageUrl.startsWith("data:image/")) {
+    return json({ error: "Missing image — send a base64 data URL in imageUrl" }, 400);
+  }
+  const num = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? n : 0);
+  const str = (n: unknown) => (typeof n === "string" ? n : undefined);
+
+  try {
+    const { taskId, status } = await ctx.runMutation(api.imageTo3d.createViaKey, {
+      keyId: key.id,
+      imageName,
+      imageUrl,
+      width: num(body.width),
+      height: num(body.height),
+      avgColor: str(body.avgColor) ?? "#808080",
+      brightness: num(body.brightness) || 0.5,
+      preferredProvider: str(body.preferredProvider),
+      preferredModel: str(body.preferredModel),
+    });
+    return json({ id: taskId, status, statusUrl: `/v1/image3d/tasks/${taskId}` }, 202);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Image→3D submission failed";
+    return json({ error: msg }, msg.toLowerCase().includes("key") ? 401 : 400);
+  }
+});
+
+/** Image→3D — GET /v1/image3d/tasks/:id · GET /v1/image3d/tasks/:id/download */
+export const i3dPoll = httpAction(async (ctx, request) => {
+  const key = await bearerKey(ctx, request);
+  if (!key) return json({ error: "Invalid or missing API key" }, 401);
+
+  const pathname = new URL(request.url).pathname;
+  const rest = pathname.replace(/^\/v1\/image3d\/tasks\//, "");
+  const download = rest.endsWith("/download");
+  const id = download ? rest.replace(/\/download$/, "") : rest;
+  if (!id) return json({ error: "Missing task id" }, 400);
+
+  const task = await ctx.runQuery(api.imageTo3d.getPublic, { taskId: id as never });
+  if (!task) return json({ error: "Task not found" }, 404);
+
+  if (download) {
+    if (task.status !== "completed" || !task.outputs) {
+      return json({ error: `Task is ${task.status} — export not ready` }, 409);
+    }
+    const format = new URL(request.url).searchParams.get("format") ?? "glb";
+    if (format === "preview") {
+      return json({ taskId: id, format, url: task.previewUrl, expiresIn: "30d" });
+    }
+    const url = task.outputs[format as "glb" | "fbx" | "obj"];
+    if (!url) return json({ error: `Unknown format "${format}"` }, 400);
+    return json({ taskId: id, format, url, expiresIn: "30d" });
+  }
+
+  return json(task);
+});
+
+/** Image→3D webhook — POST /v1/webhooks/image3d/:taskId */
+export const i3dWebhook = httpAction(async (ctx, request) => {
+  if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+
+  const pathname = new URL(request.url).pathname;
+  const taskId = pathname.replace(/^\/v1\/webhooks\/image3d\//, "");
+  if (!taskId) return json({ error: "Missing task id" }, 400);
+
+  const signature = request.headers.get("x-atelier-signature") ?? "";
+  if (!signature) return json({ error: "Missing X-Atelier-Signature header" }, 401);
+
+  let payload: string;
+  try {
+    payload = await request.text();
+  } catch {
+    return json({ error: "Invalid body" }, 400);
+  }
+  let body: Record<string, unknown> = {};
+  try {
+    body = JSON.parse(payload) as Record<string, unknown>;
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
+  }
+  const event = typeof body.event === "string" ? body.event : "";
+  if (!event) return json({ error: "Body must include event" }, 400);
+
+  try {
+    const result = await ctx.runMutation(api.imageTo3d.verifyAndApplyWebhook, {
+      taskId: taskId as never,
+      event,
+      payload,
+      signature,
+    });
+    return json({ ok: true, taskId, status: result.status });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Webhook failed";
+    return json({ error: msg }, msg.toLowerCase().includes("signature") ? 401 : 400);
+  }
+});
+
 // This router only supports exact paths and path prefixes (no :params).
 http.route({ pathPrefix: "/v1/requests/", method: "GET", handler: v1Get });
+http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "POST", handler: i3dWebhook });
+http.route({ pathPrefix: "/v1/webhooks/image3d/", method: "OPTIONS", handler: i3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/text3d/", method: "POST", handler: t3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/text3d/", method: "OPTIONS", handler: t3dWebhook });
 http.route({ pathPrefix: "/v1/webhooks/", method: "POST", handler: webhookReceiver });
@@ -286,6 +400,9 @@ http.route({ pathPrefix: "/v1/webhooks/", method: "OPTIONS", handler: webhookRec
 http.route({ pathPrefix: "/v1/text3d/tasks/", method: "GET", handler: t3dPoll });
 http.route({ path: "/v1/text3d/tasks", method: "POST", handler: t3dSubmit });
 http.route({ path: "/v1/text3d/tasks", method: "OPTIONS", handler: t3dSubmit });
+http.route({ pathPrefix: "/v1/image3d/tasks/", method: "GET", handler: i3dPoll });
+http.route({ path: "/v1/image3d/tasks", method: "POST", handler: i3dSubmit });
+http.route({ path: "/v1/image3d/tasks", method: "OPTIONS", handler: i3dSubmit });
 http.route({ pathPrefix: "/v1/", method: "POST", handler: v1Proxy });
 http.route({ pathPrefix: "/v1/", method: "OPTIONS", handler: v1Proxy });
 

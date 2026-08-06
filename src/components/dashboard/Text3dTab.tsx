@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SectionTitle } from "./bits";
 import { cn } from "@/lib/utils";
 import { signWebhookPayload } from "@/convex/providers/sdk";
+import { useNow } from "@/hooks/use-now";
 import type { Id } from "@/convex/_generated/dataModel";
 
 const EXAMPLES = [
@@ -119,7 +120,7 @@ export function Text3dTab() {
   const preferredRoute =
     preferred !== "auto" ? routeProvider({ prompt, preferredProvider: preferred }) : null;
 
-  const now = Date.now();
+  const now = useNow(1000);
   const canSubmit = validation.ok && !submitting;
 
   async function handleSubmit() {

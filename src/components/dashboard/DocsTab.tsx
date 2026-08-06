@@ -274,6 +274,54 @@ export function DocsTab() {
         </div>
       </div>
 
+      {/* image→3d module reference (STEP 07) */}
+      <div>
+        <SectionTitle kicker="STEP 07 · Image → 3D" title="The ten-stage workflow" />
+        <p className="mt-2 text-[13px] leading-6 text-muted-foreground">
+          A reference photo becomes a watertight mesh: upload → background removal →
+          enhancement → vision caption → prompt optimization → generate 3D → preview →
+          storage → download → webhook. The Image → 3D tab walks every stage live, with
+          the CV stages simulated deterministically.
+        </p>
+        <div className="mt-4 divide-y divide-border/70 overflow-hidden rounded-lg border border-border bg-card">
+          {[
+            [
+              "Upload image",
+              "Images are downscaled to ≤ 512px in the browser and analysed (dimensions, mean colour, luminance) before upload — no large payloads ever reach the backend.",
+            ],
+            [
+              "Background removal · Enhancement",
+              "A deterministic cutout pass (alpha / soft-edge / chroma) and a contrast–saturation–sharpness pass prepare a clean subject. In production these call a CV model like rembg or SAM.",
+            ],
+            [
+              "Vision caption",
+              "The subject is described in natural language — shape, material, lighting, palette — seeded deterministically from the image's fingerprint and stats. Production would call a vision LLM.",
+            ],
+            [
+              "Prompt optimization · Router",
+              "The caption is rewritten per provider (Tripo printable, Meshy game-ready, Hunyuan3D organic) and routed by keywords or an explicit preference.",
+            ],
+            [
+              "Generate 3D · Poll",
+              "Tasks queue, then a scheduled worker advances them queued → processing → completed with deterministic provider timing.",
+            ],
+            [
+              "Preview · Storage",
+              "A preview thumbnail render plus the three exports land in the image3D asset bucket for 30 days.",
+            ],
+            [
+              "Download · Webhook",
+              "GLB / FBX / OBJ (+ preview) are served via GET /v1/image3d/tasks/:id/download?format=…. Signed deliveries reconcile tasks through POST /v1/webhooks/image3d/:taskId.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="grid gap-1.5 px-5 py-4 sm:grid-cols-[160px_1fr] sm:gap-6">
+              <p className="font-mono text-[12px] font-medium text-chart-1">{title}</p>
+              <p className="text-[12.5px] leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* provider reference */}
       <div>
         <SectionTitle kicker="Reference" title="Provider routes" />

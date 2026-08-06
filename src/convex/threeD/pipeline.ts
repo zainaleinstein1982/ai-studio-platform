@@ -25,9 +25,6 @@ export interface RoutedProvider {
   label: string;
 }
 
-/** Ordered router preference — fastest/most capable first. */
-const ROUTER_ORDER: Text3dProviderId[] = ["tripo", "meshy", "hunyuan3d"];
-
 function specOf(id: Text3dProviderId): SdkProvider {
   const s = sdkProviderById(id);
   if (!s) throw new Error(`Unknown 3D provider ${id}`);

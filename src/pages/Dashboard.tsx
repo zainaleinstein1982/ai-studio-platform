@@ -7,6 +7,7 @@ import {
   Boxes,
   CreditCard,
   History,
+  Image as ImageIcon,
   KeyRound,
   LayoutDashboard,
   LogOut,
@@ -27,12 +28,14 @@ import { DocsTab } from "@/components/dashboard/DocsTab";
 import { AccountTab } from "@/components/dashboard/AccountTab";
 import { ProvidersTab } from "@/components/dashboard/ProvidersTab";
 import { Text3dTab } from "@/components/dashboard/Text3dTab";
+import { Image3dTab } from "@/components/dashboard/Image3dTab";
 import { cn } from "@/lib/utils";
 
 export type ConsoleTab =
   | "overview"
   | "gateway"
   | "text3d"
+  | "image3d"
   | "providers"
   | "keys"
   | "history"
@@ -44,6 +47,7 @@ const TABS: { id: ConsoleTab; label: string; sub: string; icon: LucideIcon }[] =
   { id: "overview", label: "Overview", sub: "Usage at a glance", icon: LayoutDashboard },
   { id: "gateway", label: "Gateway", sub: "Compose and route requests", icon: Send },
   { id: "text3d", label: "Text → 3D", sub: "Prompt to GLB · FBX · OBJ", icon: Box },
+  { id: "image3d", label: "Image → 3D", sub: "Reference photo to mesh", icon: ImageIcon },
   { id: "providers", label: "SDK", sub: "Providers & the six-operation contract", icon: Boxes },
   { id: "keys", label: "API Keys", sub: "Issue, reveal, and revoke keys", icon: KeyRound },
   { id: "history", label: "History", sub: "The full request ledger", icon: History },
@@ -250,6 +254,7 @@ export default function Dashboard() {
             {tab === "overview" && <OverviewTab onNavigate={go} />}
             {tab === "gateway" && <GatewayTab />}
             {tab === "text3d" && <Text3dTab />}
+            {tab === "image3d" && <Image3dTab />}
             {tab === "providers" && <ProvidersTab />}
             {tab === "keys" && <ApiKeysTab />}
             {tab === "history" && <HistoryTab />}
