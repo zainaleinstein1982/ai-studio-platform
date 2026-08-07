@@ -6,6 +6,8 @@ import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Menambahkan path base untuk GitHub Pages
+  base: "/ai-studio-platform/",
   plugins: [react(), vlyPlugin(), tailwindcss()],
   resolve: {
     alias: {
