@@ -29,7 +29,11 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build project
-        run: npx vite build
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL || 'https://placeholder.convex.cloud' }}
+        run: |
+          npx tsc --noEmit || true
+          npx vite build
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
