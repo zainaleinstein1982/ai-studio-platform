@@ -113,7 +113,7 @@ createRoot(document.getElementById("root")!).render(
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
         {/* Tambahkan basename di sini */}
-        <BrowserRouter basename="/ai-studio-platform">
+        <BrowserRouter>
           <RouteSyncer />
           <Suspense fallback={<RouteLoading />}>
             <Routes>

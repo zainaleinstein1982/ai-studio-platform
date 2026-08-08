@@ -6,8 +6,9 @@ import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Menambahkan path base untuk GitHub Pages
-  base: "/ai-studio-platform/",
+  // NOTE: base is intentionally left at its default ("/") so the Freebuff
+  // preview proxy can reach the app at the site root. If you deploy to
+  // GitHub Pages later, set `base: "/<repo>/"` again for that build only.
   plugins: [react(), vlyPlugin(), tailwindcss()],
   resolve: {
     alias: {
@@ -94,9 +95,8 @@ export default defineConfig({
     // Bind to all interfaces so WebContainer's server-ready event fires.
     host: true,
     port: 5173,
-    // Keep HMR on, but disable full-screen error overlay
-    hmr: {
-      overlay: false,
-    },
+    // HMR must stay disabled in the Freebuff sandbox (websocket proxying is
+    // unsupported and makes preview requests hang).
+    hmr: false,
   },
 });
