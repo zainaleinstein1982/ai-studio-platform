@@ -204,6 +204,7 @@ bunx eslint .            # 0 error
 |---|---|---|
 | Preview: `{"status":500,"message":"proxy upstream error"...}` | `base` di `vite.config.ts` tidak `/` (redirect 302 tak bisa diikuti proxy) | Pastikan tidak ada `base: "/..."`; klik **Refresh preview**. |
 | Preview blank / respon lama | HMR websocket aktif di sandbox | Pastikan `server.hmr: false` di `vite.config.ts`. |
+| Klik Sign in → `Failed to fetch dynamically imported module: .../src/pages/Auth.tsx` | Dev server sedang **restart** tepat saat klik (mis. setelah ubah `vite.config.ts`) — error transien | Cukup **refresh halaman** lalu coba lagi; jika tetap terjadi, cek `curl http://localhost:5173/src/pages/Auth.tsx` harus 200. |
 | `Did you forget to run convex dev?` | Backend belum jalan / error compile | Jalankan `bunx convex dev --once`, perbaiki error TS, ulangi. |
 | Sign-in tidak pernah selesai (loop ke /auth) | Auth config salah `customJwt` | Jangan ubah `src/convex/auth.config.ts` / `auth.ts` (lihat README). |
 | Port 5173 sudah terpakai | Vite instance ganda | Matikan instance lama, jalankan ulang `bun run dev`. |
