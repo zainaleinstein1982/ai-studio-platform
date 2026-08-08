@@ -14,28 +14,64 @@ import {
   LayoutDashboard,
   ListOrdered,
   LogOut,
+  RefreshCw,
   Send,
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Component, lazy, Suspense, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { planById } from "@/convex/catalog";
-import { OverviewTab } from "@/components/dashboard/OverviewTab";
-import { GatewayTab } from "@/components/dashboard/GatewayTab";
-import { ApiKeysTab } from "@/components/dashboard/ApiKeysTab";
-import { HistoryTab } from "@/components/dashboard/HistoryTab";
-import { BillingTab } from "@/components/dashboard/BillingTab";
-import { DocsTab } from "@/components/dashboard/DocsTab";
-import { AccountTab } from "@/components/dashboard/AccountTab";
-import { ProvidersTab } from "@/components/dashboard/ProvidersTab";
-import { Text3dTab } from "@/components/dashboard/Text3dTab";
-import { Image3dTab } from "@/components/dashboard/Image3dTab";
-import { VideoTab } from "@/components/dashboard/VideoTab";
-import { StorageTab } from "@/components/dashboard/StorageTab";
-import { QueueTab } from "@/components/dashboard/QueueTab";
 import { cn } from "@/lib/utils";
+
+/* ------------------------------------------------------------------ */
+/* Tabs are lazy-loaded: the /dashboard route only fetches the shell + */
+/* the active tab, instead of the entire 13-tab suite (which pulls in */
+/* recharts, all providers, etc.) in one burst. This keeps cold starts */
+/* fast and keeps a single module hiccup from blanking the dashboard. */
+/* ------------------------------------------------------------------ */
+
+const OverviewTab = lazy(() =>
+  import("@/components/dashboard/OverviewTab").then((m) => ({ default: m.OverviewTab })),
+);
+const GatewayTab = lazy(() =>
+  import("@/components/dashboard/GatewayTab").then((m) => ({ default: m.GatewayTab })),
+);
+const Text3dTab = lazy(() =>
+  import("@/components/dashboard/Text3dTab").then((m) => ({ default: m.Text3dTab })),
+);
+const Image3dTab = lazy(() =>
+  import("@/components/dashboard/Image3dTab").then((m) => ({ default: m.Image3dTab })),
+);
+const VideoTab = lazy(() =>
+  import("@/components/dashboard/VideoTab").then((m) => ({ default: m.VideoTab })),
+);
+const StorageTab = lazy(() =>
+  import("@/components/dashboard/StorageTab").then((m) => ({ default: m.StorageTab })),
+);
+const QueueTab = lazy(() =>
+  import("@/components/dashboard/QueueTab").then((m) => ({ default: m.QueueTab })),
+);
+const ProvidersTab = lazy(() =>
+  import("@/components/dashboard/ProvidersTab").then((m) => ({ default: m.ProvidersTab })),
+);
+const ApiKeysTab = lazy(() =>
+  import("@/components/dashboard/ApiKeysTab").then((m) => ({ default: m.ApiKeysTab })),
+);
+const HistoryTab = lazy(() =>
+  import("@/components/dashboard/HistoryTab").then((m) => ({ default: m.HistoryTab })),
+);
+const BillingTab = lazy(() =>
+  import("@/components/dashboard/BillingTab").then((m) => ({ default: m.BillingTab })),
+);
+const DocsTab = lazy(() =>
+  import("@/components/dashboard/DocsTab").then((m) => ({ default: m.DocsTab })),
+);
+const AccountTab = lazy(() =>
+  import("@/components/dashboard/AccountTab").then((m) => ({ default: m.AccountTab })),
+);
 
 export type ConsoleTab =
   | "overview"
@@ -92,6 +128,59 @@ function initialsOf(name?: string, email?: string): string {
   const first = parts[0]?.[0] ?? "A";
   const last = parts[1]?.[0] ?? "";
   return (first + last).toUpperCase();
+}
+
+/** Quiet placeholder while a lazy tab is being fetched. */
+function TabLoading() {
+  return (
+    <div className="space-y-4">
+      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-28 animate-pulse rounded-lg border border-border/60 bg-card" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** A tab that fails to load (e.g. dev server briefly unavailable while the
+ *  module is fetched) renders a small recovery card instead of blanking the
+ *  whole dashboard. Switching tabs (or the retry button) resets it. */
+class TabErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(err: Error) {
+    console.warn("[TabErrorBoundary] Tab failed to load:", err.message);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-lg border border-border bg-card px-6 py-14 text-center">
+          <p className="text-[13px] font-medium text-foreground">This section could not be loaded.</p>
+          <p className="mx-auto mt-1.5 max-w-sm text-[12.5px] leading-5 text-muted-foreground">
+            The dev server may have been restarting mid-fetch. Switch to another tab and back,
+            or press retry — the rest of the dashboard keeps working.
+          </p>
+          <button
+            onClick={() => this.setState({ hasError: false })}
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-border bg-background px-3.5 py-2 text-[12.5px] font-medium text-foreground transition-colors hover:bg-accent"
+          >
+            <RefreshCw className="size-3.5" /> Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 export default function Dashboard() {
@@ -263,19 +352,23 @@ export default function Dashboard() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
           >
-            {tab === "overview" && <OverviewTab onNavigate={go} />}
-            {tab === "gateway" && <GatewayTab />}
-            {tab === "text3d" && <Text3dTab />}
-            {tab === "image3d" && <Image3dTab />}
-            {tab === "video" && <VideoTab />}
-            {tab === "storage" && <StorageTab />}
-            {tab === "queue" && <QueueTab />}
-            {tab === "providers" && <ProvidersTab />}
-            {tab === "keys" && <ApiKeysTab />}
-            {tab === "history" && <HistoryTab />}
-            {tab === "billing" && <BillingTab />}
-            {tab === "docs" && <DocsTab />}
-            {tab === "account" && <AccountTab />}
+            <TabErrorBoundary>
+              <Suspense fallback={<TabLoading />}>
+                {tab === "overview" && <OverviewTab onNavigate={go} />}
+                {tab === "gateway" && <GatewayTab />}
+                {tab === "text3d" && <Text3dTab />}
+                {tab === "image3d" && <Image3dTab />}
+                {tab === "video" && <VideoTab />}
+                {tab === "storage" && <StorageTab />}
+                {tab === "queue" && <QueueTab />}
+                {tab === "providers" && <ProvidersTab />}
+                {tab === "keys" && <ApiKeysTab />}
+                {tab === "history" && <HistoryTab />}
+                {tab === "billing" && <BillingTab />}
+                {tab === "docs" && <DocsTab />}
+                {tab === "account" && <AccountTab />}
+              </Suspense>
+            </TabErrorBoundary>
           </motion.div>
         </div>
       </main>
